@@ -1,8 +1,37 @@
 <html>
   <head>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      #root {
+        display: flex;
+        flex-direction: row;
+      }
+      #canvas-root {
+        border-right: solid #666 1px;
+        border-left: solid #666 1px;
+        height: 100%;
+        width: 60%;
+      }
+      #layers-panel-root {
+        height: 100%;
+        width: 20%;
+        padding: 8px;
+      }
+      #properties-panel-root {
+        height: 100%;
+        width: 20%;
+        padding: 8px;
+      }
+    </style>
   </head>
   <body>
-    <div id="react-root"></div>
+    <div id="root">
+      <div id="layers-panel-root"></div>
+      <div id="canvas-root"></div>
+      <div id="properties-panel-root"></div>
+    </div>
 
     <script src="./node_modules/react/umd/react.development.js"></script>
     <script src="./node_modules/react-dom/umd/react-dom.development.js"></script>

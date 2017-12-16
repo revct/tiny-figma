@@ -1,9 +1,15 @@
-import * as React from "react";
-import * as ReactDOM from "react-dom";
+import * as React from "react"
+import * as ReactDOM from "react-dom"
 
-import {Hello} from "./components/Hello";
+import {PropertiesPanel} from "./components/PropertiesPanel"
+import {LayersPanel} from "./components/LayersPanel"
 
 ReactDOM.render(
-  <Hello compiler="Typescript" framework="React" />,
-  document.getElementById("react-root"));
+  <LayersPanel />,
+  document.getElementById("layers-panel-root"))
 
+ReactDOM.render(
+  <PropertiesPanel />,
+  document.getElementById("properties-panel-root"))
+
+document.getElementById("canvas-root")
