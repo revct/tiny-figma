@@ -8,11 +8,23 @@
         display: flex;
         flex-direction: row;
       }
-      #canvas-root {
+      #canvas-section {
         border-right: solid #666 1px;
         border-left: solid #666 1px;
         height: 100%;
         width: 60%;
+
+        display: flex;
+        flex-direction: column;
+      }
+      #canvas-root {
+        border-bottom: solid #666 1px;
+        height: 80%;
+        width: 100%;
+      }
+      #sandbox-root {
+        height: 20%;
+        width: 100%;
       }
       #layers-panel-root {
         height: 100%;
@@ -29,7 +41,10 @@
   <body>
     <div id="root">
       <div id="layers-panel-root"></div>
-      <div id="canvas-root"></div>
+      <div id="canvas-section">
+        <div id="canvas-root"></div>
+        <div id="sandbox-root"></div>
+      </div>
       <div id="properties-panel-root"></div>
     </div>
 

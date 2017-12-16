@@ -1,6 +1,7 @@
 import * as React from "react"
+import {HasDispatch} from "../helpers/redux_helpers";
 
-export interface PropertiesPanelProps {
+export interface PropertiesPanelProps extends HasDispatch {
 
 }
 
