@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "A tiny Figma.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "webpack-dev-server"
   },
   "author": "",
   "license": "ISC",
@@ -12,13 +13,17 @@
     "react-dom": "^16.2.0"
   },
   "devDependencies": {
+    "@types/gl-matrix": "^2.4.0",
     "@types/react": "^16.0.31",
     "@types/react-dom": "^16.0.3",
     "@types/react-redux": "^5.0.14",
     "awesome-typescript-loader": "^3.4.1",
+    "gl-matrix": "^2.4.0",
     "react-redux": "^5.0.6",
     "react-redux-typescript": "^3.0.0-rc.2",
     "source-map-loader": "^0.2.3",
-    "typescript": "^2.6.2"
+    "typescript": "^2.6.2",
+    "webpack": "^3.10.0",
+    "webpack-dev-server": "^2.9.7"
   }
 }
