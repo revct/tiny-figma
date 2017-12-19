@@ -41,14 +41,14 @@ const getMouseDeltaFromMiddle = (el: HTMLCanvasElement, event: MouseEvent | Mous
   )
 }
 
-const zoomCameraRetainingOrigin = (cameraMatrix: mat2d, zoom: number, origin: vec2) => {
-  const zoomMatrix: mat2d = mat2d.fromScaling(mat2d.create(), [zoom, zoom])
+export const zoomCameraRetainingOrigin = (A: mat2d, scale: number, x: vec2): mat2d => {
+  const nx:vec2 = vec2.negate(vec2.create(), x)
 
-  const scaledOrigin: vec2 = vec2.transformMat2d(vec2.create(), origin, zoomMatrix)
-  const deltaOrigin = vec2.subtract(vec2.create(), scaledOrigin, origin)
+  mat2d.multiply(A, mat2d.fromTranslation(mat2d.create(), nx), A)
+  mat2d.multiply(A, mat2d.fromScaling(mat2d.create(), [scale, scale]), A)
+  mat2d.multiply(A, mat2d.fromTranslation(mat2d.create(), x), A)
 
-  mat2d.multiply(cameraMatrix, zoomMatrix, cameraMatrix)
-  mat2d.translate(cameraMatrix, cameraMatrix, deltaOrigin)
+  return A
 }
 
 
@@ -71,30 +71,13 @@ export class Editor {
         const viewportMouse: vec2 = getMouseLocation(canvasEl, event)
         const zoom = 1 + 0.05 * event.wheelDelta / 120
 
-        zoomCameraRetainingOrigin(this.cameraMatrix, zoom, viewportMouse)
+        this.cameraMatrix = zoomCameraRetainingOrigin(this.cameraMatrix, zoom, viewportMouse)
       }
       else {
         mat2d.translate(this.cameraMatrix, this.cameraMatrix, [event.deltaX, event.deltaY])
       }
 
       event.preventDefault()
-
-      // var zoom = 1 + wheel/2;
-      //
-      // mat2d.identity(this.cameraTransform)
-      // mat2d.translate(this.cameraTransform, this.cameraTransform, vec2.fromValues(
-      //   originX,
-      //   originY
-      // ))
-      // mat2d.scale(this.cameraTransform, this.cameraTransform, vec2.fromValues(zoom, zoom))
-      // mat2d.translate(this.cameraTransform, this.cameraTransform, vec2.fromValues(
-      //   -( mouseX / scale + originX - mouseX / ( scale * zoom ) ),
-      //   -( mouseY / scale + originY - mouseY / ( scale * zoom ) )
-      // ))
-      //
-      // originX = ( mouseX / scale + originX - mouseX / ( scale * zoom ) );
-      // originY = ( mouseY / scale + originY - mouseY / ( scale * zoom ) );
-      // scale *= zoom;
     }
   }
 

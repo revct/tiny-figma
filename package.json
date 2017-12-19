@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "A tiny Figma.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "webpack-dev-server"
+    "dev": "webpack --watch",
+    "test": "karma start karma.conf.js"
   },
   "author": "",
   "license": "ISC",
@@ -14,16 +14,24 @@
   },
   "devDependencies": {
     "@types/gl-matrix": "^2.4.0",
+    "@types/jasmine": "^2.8.2",
     "@types/react": "^16.0.31",
     "@types/react-dom": "^16.0.3",
     "@types/react-redux": "^5.0.14",
     "awesome-typescript-loader": "^3.4.1",
     "gl-matrix": "^2.4.0",
+    "jasmine": "^2.8.0",
+    "jasmine-core": "^2.8.0",
+    "karma": "^1.7.1",
+    "karma-chrome-launcher": "^2.2.0",
+    "karma-jasmine": "^1.1.1",
+    "karma-sourcemap-loader": "^0.3.7",
+    "karma-webpack": "^2.0.9",
     "react-redux": "^5.0.6",
     "react-redux-typescript": "^3.0.0-rc.2",
     "source-map-loader": "^0.2.3",
+    "ts-loader": "^3.2.0",
     "typescript": "^2.6.2",
-    "webpack": "^3.10.0",
-    "webpack-dev-server": "^2.9.7"
+    "webpack": "^3.10.0"
   }
 }
