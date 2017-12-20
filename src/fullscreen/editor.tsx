@@ -2,6 +2,9 @@
 import {Canvas} from "../helpers/graphics_helpers";
 import {vec2, mat2d} from 'gl-matrix'
 import {invert} from "../helpers/matrix_helpers";
+import {Fullscreen} from "./types";
+import SceneGraph = Fullscreen.SceneGraph;
+import AppModel = Fullscreen.AppModel;
 
 const transformArray = (points: vec2[], transform: mat2d): vec2[] => {
   return points.map((point: vec2): vec2 => {
@@ -56,10 +59,14 @@ export const zoomCameraRetainingOrigin = (A: mat2d, scale: number, x: vec2): mat
 
 export class Editor {
   canvas: Canvas
-
   cameraMatrix: mat2d
+  sceneGraph: SceneGraph
 
-  constructor(canvasEl: HTMLCanvasElement) {
+  constructor(
+    canvasEl: HTMLCanvasElement,
+    sceneGraph: SceneGraph,
+    appModel: AppModel
+  ) {
     this.canvas = new Canvas(canvasEl)
     this.cameraMatrix = mat2d.fromTranslation(mat2d.create(), [this.canvas.width() * 0.5, this.canvas.height() * 0.5])
 

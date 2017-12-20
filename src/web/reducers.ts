@@ -1,11 +1,11 @@
 import {actionCreators} from './actions';
 import {Action} from '../helpers/redux_helpers';
 import {combineReducers, Reducer} from 'redux'
-import {NodeType} from "../fullscreen/scene_graph";
+import {Fullscreen} from "../fullscreen/types";
 
 export type SceneGraphNode = {
   readonly guid: string
-  type: NodeType
+  type: Fullscreen.NodeType
   resizeToFit?: boolean
   parent?: string // The GUID of the parent node
   position: number // Children are sorted using this as a key

@@ -10,8 +10,9 @@ import {Counter, ConnectedCounter} from './web/components/Counter'
 import {State, reducer} from './web/reducers'
 import {Editor} from './fullscreen/editor'
 import {asyncSleep} from "./helpers/async_helpers";
-import {SceneGraph} from "./fullscreen/scene_graph";
 import {actionCreators} from "./web/actions";
+import {Fullscreen} from "./fullscreen/types";
+import {mat2d} from "gl-matrix";
 
 const store = redux.createStore<State>(reducer)
 
@@ -23,11 +24,29 @@ ReactDOM.render(
   <ReactRedux.Provider store={store}><PropertiesPanel dispatch={a => a}/></ReactRedux.Provider>,
   document.getElementById('properties-panel-root'))
 
-const sceneGraph: SceneGraph = SceneGraph.create()
+const sceneGraph: Fullscreen.SceneGraph = {
+  root: {
+    guid: 'root',
+    type: 'CANVAS',
+    position: Math.random(),
+    children: [],
+    relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, -50]),
+    width: 50,
+    height: 50
+  }
+}
+
+const appModel: Fullscreen.AppModel = {
+  page: 'root'
+}
 
 store.dispatch(actionCreators.injectSceneGraph(sceneGraph));
 
-const editor = new Editor(document.getElementById('canvas') as HTMLCanvasElement)
+const editor = new Editor(
+  document.getElementById('canvas') as HTMLCanvasElement,
+  sceneGraph,
+  appModel
+)
 
 ;(async () => {
   const MILLIS = 1000.0 / 60.0
