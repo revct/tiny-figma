@@ -13,17 +13,19 @@ const transformArray = (points: vec2[], transform: mat2d): vec2[] => {
 
 const AXIS_LINES = [
   [
-    vec2.fromValues(0.5, -10.5),
-    vec2.fromValues(0.5, 0.5),
-    vec2.fromValues(10.5, 0.5),
+    vec2.fromValues(0, -10),
+    vec2.fromValues(0, 0),
+    vec2.fromValues(10, 0),
   ],
   [
-    vec2.fromValues(0.5, -30.5),
-    vec2.fromValues(0.5, -20.5),
+    vec2.fromValues(-0.5, -9.5),
+    vec2.fromValues(0, -10),
+    vec2.fromValues(0.5, -9.5),
   ],
   [
-    vec2.fromValues(30.5, 0.5),
-    vec2.fromValues(20.5, 0.5),
+    vec2.fromValues(9.5, -0.5),
+    vec2.fromValues(10, 0),
+    vec2.fromValues(9.5, 0.5),
   ]
 ]
 

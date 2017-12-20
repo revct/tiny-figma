@@ -21,10 +21,6 @@ ReactDOM.render(
   <ReactRedux.Provider store={store}><PropertiesPanel dispatch={a => a}/></ReactRedux.Provider>,
   document.getElementById('properties-panel-root'))
 
-ReactDOM.render(
-  <ReactRedux.Provider store={store}><ConnectedCounter /></ReactRedux.Provider>,
-  document.getElementById('sandbox-root'))
-
 const editor = new Editor(document.getElementById('canvas') as HTMLCanvasElement)
 
 ;(async () => {
