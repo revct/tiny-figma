@@ -99,15 +99,15 @@ export class Editor {
   }
 
   recursivelyRender(node: SceneGraphNode, m: mat2d) {
-    const mm: mat2d = mat2d.multiply(mat2d.create(), node.relativeTransform, m)
+    const mm: mat2d = mat2d.multiply(mat2d.create(), m, node.relativeTransform)
 
     if (node.type == 'FRAME') {
       const topLeftCorner: vec2 = vec2.fromValues(0, 0)
       const bottomRightCorner: vec2 = vec2.fromValues(node.width, node.height)
 
       // This code does not handle rotation!
-      vec2.transformMat2d(topLeftCorner, topLeftCorner, m)
-      vec2.transformMat2d(bottomRightCorner, bottomRightCorner, m)
+      vec2.transformMat2d(topLeftCorner, topLeftCorner, mm)
+      vec2.transformMat2d(bottomRightCorner, bottomRightCorner, mm)
 
       this.canvas.drawRect('#cfc', topLeftCorner, bottomRightCorner)
     }
