@@ -29,7 +29,7 @@ const sceneGraph: Fullscreen.SceneGraph = {
     guid: 'root',
     type: 'CANVAS',
     position: Math.random(),
-    children: ['frame0'],
+    children: ['frame0', 'frame1', 'frame2'],
     relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, -50]),
   },
   frame0: {
@@ -40,6 +40,28 @@ const sceneGraph: Fullscreen.SceneGraph = {
     parent: 'root',
     children: [],
     relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, -50]),
+    width: 50,
+    height: 50
+  },
+  frame1: {
+    guid: 'frame1',
+    type: 'FRAME',
+    resizeToFit: false,
+    position: Math.random(),
+    parent: 'root',
+    children: [],
+    relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, 25]),
+    width: 50,
+    height: 50
+  },
+  frame2: {
+    guid: 'frame2',
+    type: 'FRAME',
+    resizeToFit: false,
+    position: Math.random(),
+    parent: 'root',
+    children: [],
+    relativeTransform: mat2d.fromTranslation(mat2d.create(), [-25, -25]),
     width: 50,
     height: 50
   }
