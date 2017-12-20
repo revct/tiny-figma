@@ -1,8 +1,8 @@
 import * as React from "react"
-import {HasDispatch} from "../helpers/redux_helpers";
-import {State} from "../redux/reducers";
+import {HasDispatch} from "../../helpers/redux_helpers";
+import {State} from "../reducers";
 import {connect} from "react-redux";
-import {actionCreators} from "../redux/actions";
+import {actionCreators} from "../actions";
 
 export interface CounterProps extends HasDispatch, State {
 }

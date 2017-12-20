@@ -1,2 +1,2 @@
 
-import './editor/editor.spec'
+import './fullscreen/editor.spec'
