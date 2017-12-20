@@ -4,23 +4,26 @@ import {mat2d} from "gl-matrix";
 export namespace Fullscreen {
   export type NodeType = 'CANVAS' | 'FRAME'
 
-  export type SceneGraphNode = {
+  export interface BaseNode {
     readonly guid: string
-
-    // Type
-    type: NodeType
-    resizeToFit?: boolean // Only necessary for frames
-
-    // Hierarchy
-    parent?: string // The GUID of the parent node
     position: number // Children are sorted using this as a key
     children: string[] // The GUIDs of child nodes
-
-    // Location
     relativeTransform: mat2d
-    width: number
+  }
+
+  export interface CanvasNode extends BaseNode {
+    type: 'CANVAS'
+  }
+
+  export interface FrameNode extends BaseNode {
+    type: 'FRAME'
+    resizeToFit: boolean // Only necessary for frames
+    parent: string // The GUID of the parent node
+    width: number // Size is not present on CANVAS
     height: number
   }
+
+  export type SceneGraphNode = FrameNode | CanvasNode
 
   export type SceneGraph = {
     [nodeId: string]: SceneGraphNode

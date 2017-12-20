@@ -1,5 +1,5 @@
 
-import { vec2 } from 'gl-matrix'
+import {mat2d, vec2} from 'gl-matrix'
 import {createElement} from "react";
 
 export class Canvas {

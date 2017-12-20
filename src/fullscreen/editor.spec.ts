@@ -36,8 +36,6 @@ describe("zoomCameraRetainingOrigin", () => {
         absolute,
         camera)
 
-      console.warn(absolute, '=>', mouse)
-
       const newCamera: mat2d = zoomCameraRetainingOrigin(camera, newZoom, mouse)
       assert.deepEqual(vec2.transformMat2d(vec2.create(), absolute, newCamera), mouse)
     })
@@ -45,7 +43,7 @@ describe("zoomCameraRetainingOrigin", () => {
 })
 
 describe('testing my matrix understanding', () => {
-  it('works', () => {
+  it('composing matrices works', () => {
     const scale3: mat2d = mat2d.fromScaling(mat2d.create(), [3,3])
     const translate1: mat2d = mat2d.fromTranslation(mat2d.create(), [1,0])
 
@@ -58,5 +56,37 @@ describe('testing my matrix understanding', () => {
       vec2.transformMat2d(vec2.create(), vec2.fromValues(1,1), a),
       vec2.fromValues(6, 3)
     )
+  })
+  it('the order of values is what I expect', () => {
+    const i: mat2d = mat2d.create()
+    assert.equal(i[0], 1)
+    assert.equal(i[1], 0)
+    assert.equal(i[2], 0)
+    assert.equal(i[3], 1)
+    assert.equal(i[4], 0)
+    assert.equal(i[5], 0)
+
+    const t: mat2d = mat2d.fromTranslation(mat2d.create(), [2, 3])
+    assert.equal(t[0], 1)
+    assert.equal(t[1], 0)
+    assert.equal(t[2], 0)
+    assert.equal(t[3], 1)
+    assert.equal(t[4], 2)
+    assert.equal(t[5], 3)
+
+    const r: mat2d = mat2d.fromTranslation(mat2d.create(), [2, 3])
+
+  })
+})
+
+describe('typescript iterators', () => {
+  it('doesn\'t work :(', () => {
+    function * gen (): IterableIterator<number> {
+      yield 0
+      yield 1
+      yield 2
+    }
+
+    // let x = gen().
   })
 })

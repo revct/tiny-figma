@@ -5,7 +5,10 @@ import {invert} from "../helpers/matrix_helpers";
 import {Fullscreen} from "./types";
 import SceneGraph = Fullscreen.SceneGraph;
 import AppModel = Fullscreen.AppModel;
+import SceneGraphNode = Fullscreen.SceneGraphNode;
 
+
+// TODO: turn this into an interator when I figure out how to get them to work in Typescript
 const transformArray = (points: vec2[], transform: mat2d): vec2[] => {
   return points.map((point: vec2): vec2 => {
     const result: vec2 = vec2.create()
@@ -56,11 +59,11 @@ export const zoomCameraRetainingOrigin = (A: mat2d, scale: number, x: vec2): mat
   return A
 }
 
-
 export class Editor {
   canvas: Canvas
   cameraMatrix: mat2d
   sceneGraph: SceneGraph
+  appModel: AppModel
 
   constructor(
     canvasEl: HTMLCanvasElement,
@@ -69,6 +72,8 @@ export class Editor {
   ) {
     this.canvas = new Canvas(canvasEl)
     this.cameraMatrix = mat2d.fromTranslation(mat2d.create(), [this.canvas.width() * 0.5, this.canvas.height() * 0.5])
+    this.sceneGraph = sceneGraph
+    this.appModel = appModel
 
     canvasEl.onmousemove = (event: MouseEvent) => {
       const viewportPosition: vec2 = getMouseLocation(canvasEl, event)
@@ -93,6 +98,26 @@ export class Editor {
   think(ms: number) {
   }
 
+  recursivelyRender(node: SceneGraphNode, m: mat2d) {
+    const mm: mat2d = mat2d.multiply(mat2d.create(), node.relativeTransform, m)
+
+    if (node.type == 'FRAME') {
+      const topLeftCorner: vec2 = vec2.fromValues(0, 0)
+      const bottomRightCorner: vec2 = vec2.fromValues(node.width, node.height)
+
+      // This code does not handle rotation!
+      vec2.transformMat2d(topLeftCorner, topLeftCorner, m)
+      vec2.transformMat2d(bottomRightCorner, bottomRightCorner, m)
+
+      this.canvas.drawRect('#cfc', topLeftCorner, bottomRightCorner)
+    }
+
+    for (const childGUID of node.children) {
+      const child = this.sceneGraph[childGUID] as SceneGraphNode
+      this.recursivelyRender(child, mm)
+    }
+  }
+
   render() {
     const m: mat2d = mat2d.create()
     mat2d.multiply(m, this.cameraMatrix, m)
@@ -101,6 +126,9 @@ export class Editor {
     for (const path of AXIS_LINES) {
       this.canvas.drawLine('#aaa', transformArray(path, m))
     }
+
+    const root = this.sceneGraph[this.appModel.page] as SceneGraphNode
+    this.recursivelyRender(root, m)
 
     this.canvas.flush()
   }
