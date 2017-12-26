@@ -1,12 +1,8 @@
 import {createActionCreator} from '../helpers/redux_helpers'
-import {MutableSceneGraph} from "./reducers";
 import {Fullscreen} from "../fullscreen/types";
 import AppModel = Fullscreen.AppModel;
 import Tool = Fullscreen.Tool;
-
-export interface UpdateMirrorPayload {
-  appModel?: AppModel
-}
+import SceneGraph = Fullscreen.SceneGraph;
 
 // Action Creators
 export const actions = {
@@ -14,12 +10,13 @@ export const actions = {
     // In Figma, action.fullscreen.updateMirror handles updates to the scene graph by packaging
     // a series of node changes which update mutableNodes in the redux state.
     notifyUpdatedSceneGraph: createActionCreator('NOTIFY_UPDATED_SCENE_GRAPH'),
-    injectSceneGraph: createActionCreator<MutableSceneGraph>('INJECT_SCENE_GRAPH'),
+    injectSceneGraph: createActionCreator<SceneGraph>('INJECT_SCENE_GRAPH'),
 
-    updateMirror: createActionCreator<UpdateMirrorPayload>('UPDATE_APP_MODEL'),
+    notifyUpdatedAppModel: createActionCreator('NOTIFY_UPDATED_APP_MODEL'),
+    injectAppModel: createActionCreator<AppModel>('INJECT_APP_MODEL'),
   },
 
   toFullscreen: {
-    updateTool: createActionCreator<Tool>('UPDATE_TOOL'),
+    switchTool: createActionCreator<Tool>('UPDATE_TOOL'),
   }
 };

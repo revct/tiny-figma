@@ -1,11 +1,14 @@
 
-import {Canvas} from "../helpers/graphics_helpers";
+import  {Canvas} from "../helpers/graphics_helpers";
 import {vec2, mat2d} from 'gl-matrix'
 import {invert} from "../helpers/matrix_helpers";
 import {Fullscreen} from "./types";
 import SceneGraph = Fullscreen.SceneGraph;
 import AppModel = Fullscreen.AppModel;
 import SceneGraphNode = Fullscreen.SceneGraphNode;
+import Tool = Fullscreen.Tool;
+import {Dispatch} from "react-redux";
+import {actions} from "../web/actions";
 
 
 // TODO: turn this into an interator when I figure out how to get them to work in Typescript
@@ -64,6 +67,7 @@ export class Editor {
   cameraMatrix: mat2d
   sceneGraph: SceneGraph
   appModel: AppModel
+  sendActionToWeb: Dispatch<any>
 
   constructor(
     canvasEl: HTMLCanvasElement,
@@ -95,10 +99,15 @@ export class Editor {
     }
   }
 
+  switchTool(tool: Tool) {
+    this.appModel.currentTool = tool
+    this.sendActionToWeb(actions.toWeb.notifyUpdatedAppModel())
+  }
+
   think(ms: number) {
   }
 
-  recursivelyRender(node: SceneGraphNode, m: mat2d) {
+  private recursivelyRender(node: SceneGraphNode, m: mat2d) {
     const mm: mat2d = mat2d.multiply(mat2d.create(), m, node.relativeTransform)
 
     if (node.type == 'FRAME') {

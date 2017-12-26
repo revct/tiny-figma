@@ -13,7 +13,7 @@ import {actions} from "./web/actions";
 import {Fullscreen} from "./fullscreen/types";
 import {mat2d} from "gl-matrix";
 import {ToolRoot} from "./web/components/ToolPicker";
-import {sendToFullscreenMiddleware} from "./web/middleware";
+import {forwardActionsToFullscreen} from "./web/middleware";
 
 const sceneGraph: Fullscreen.SceneGraph = {
   root: {
@@ -63,6 +63,8 @@ const appModel: Fullscreen.AppModel = {
   currentTool: Fullscreen.Tool.DEFAULT
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const editor = new Editor(
   document.getElementById('canvas') as HTMLCanvasElement,
   sceneGraph,
@@ -71,11 +73,13 @@ const editor = new Editor(
 
 const store = redux.createStore<State>(
   reducer,
-  redux.applyMiddleware(sendToFullscreenMiddleware(editor))
+  redux.applyMiddleware(forwardActionsToFullscreen(editor))
 )
 
+editor.sendActionToWeb = store.dispatch
+
 store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph));
-store.dispatch(actions.toWeb.updateMirror({appModel: appModel}));
+store.dispatch(actions.toWeb.injectAppModel(appModel));
 
 ReactDOM.render(
   <ReactRedux.Provider store={store}><LayersPanel dispatch={a => a}/></ReactRedux.Provider>,
@@ -88,6 +92,8 @@ ReactDOM.render(
 ReactDOM.render(
   <ReactRedux.Provider store={store}><ToolRoot/></ReactRedux.Provider>,
   document.getElementById('tools-root'))
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ;(async () => {
   const MILLIS = 1000.0 / 60.0
