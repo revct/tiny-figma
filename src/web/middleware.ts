@@ -5,22 +5,16 @@ import {Editor} from "../fullscreen/editor";
 import {State} from "./reducers";
 import {Action} from "../helpers/redux_helpers";
 
-
-
-export interface Dispatch<S> {
-  <A extends redux.Action> (action: A): A;
-}
 export interface MiddlewareAPI<S> {
-  dispatch: Dispatch<S>;
+  dispatch: redux.Dispatch<any>;
   getState(): S;
 }
 export interface Middleware<S> {
-  <S>(api: MiddlewareAPI<S>): (next: Dispatch<S>) => Dispatch<S>;
+  <S>(api: MiddlewareAPI<S>): (next: redux.Dispatch<any>) => redux.Dispatch<any>;
 }
 
 export const sendToFullscreenMiddleware = (editor: Editor): Middleware<State> =>
   store => next => action => {
-    // store = store as Middleware<State, Action<any>
     if (actions.toFullscreen.updateTool.matches(action)) {
       return next(action)
     }

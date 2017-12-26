@@ -31,7 +31,7 @@ export interface ActionCreator<TPayload> {
   //
   // All code inside the if-block knows that `action` is of type
   // `Action<TPayload>`.
-  matches(action: Action<any>): action is Action<TPayload>;
+  matches(action: redux.Action): action is Action<TPayload>;
 }
 
 export interface Action<TPayload> extends redux.Action {
