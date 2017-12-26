@@ -5,24 +5,15 @@ import * as ReactRedux from 'react-redux'
 
 import {PropertiesPanel} from './web/components/PropertiesPanel'
 import {LayersPanel} from './web/components/LayersPanel'
-import {Counter, ConnectedCounter} from './web/components/Counter'
 
 import {State, reducer} from './web/reducers'
 import {Editor} from './fullscreen/editor'
 import {asyncSleep} from "./helpers/async_helpers";
-import {actionCreators} from "./web/actions";
+import {actions} from "./web/actions";
 import {Fullscreen} from "./fullscreen/types";
 import {mat2d} from "gl-matrix";
-
-const store = redux.createStore<State>(reducer)
-
-ReactDOM.render(
-  <ReactRedux.Provider store={store}><LayersPanel dispatch={a => a}/></ReactRedux.Provider>,
-  document.getElementById('layers-panel-root'))
-
-ReactDOM.render(
-  <ReactRedux.Provider store={store}><PropertiesPanel dispatch={a => a}/></ReactRedux.Provider>,
-  document.getElementById('properties-panel-root'))
+import {ToolRoot} from "./web/components/ToolPicker";
+import {sendToFullscreenMiddleware} from "./web/middleware";
 
 const sceneGraph: Fullscreen.SceneGraph = {
   root: {
@@ -68,16 +59,35 @@ const sceneGraph: Fullscreen.SceneGraph = {
 }
 
 const appModel: Fullscreen.AppModel = {
-  page: 'root'
+  page: 'root',
+  currentTool: Fullscreen.Tool.DEFAULT
 }
-
-store.dispatch(actionCreators.injectSceneGraph(sceneGraph));
 
 const editor = new Editor(
   document.getElementById('canvas') as HTMLCanvasElement,
   sceneGraph,
   appModel
 )
+
+const store = redux.createStore<State>(
+  reducer,
+  redux.applyMiddleware(sendToFullscreenMiddleware(editor))
+)
+
+store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph));
+store.dispatch(actions.toWeb.updateMirror({appModel: appModel}));
+
+ReactDOM.render(
+  <ReactRedux.Provider store={store}><LayersPanel dispatch={a => a}/></ReactRedux.Provider>,
+  document.getElementById('layers-panel-root'))
+
+ReactDOM.render(
+  <ReactRedux.Provider store={store}><PropertiesPanel dispatch={a => a}/></ReactRedux.Provider>,
+  document.getElementById('properties-panel-root'))
+
+ReactDOM.render(
+  <ReactRedux.Provider store={store}><ToolRoot/></ReactRedux.Provider>,
+  document.getElementById('tools-root'))
 
 ;(async () => {
   const MILLIS = 1000.0 / 60.0

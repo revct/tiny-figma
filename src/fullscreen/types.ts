@@ -29,7 +29,13 @@ export namespace Fullscreen {
     [nodeId: string]: SceneGraphNode
   }
 
+  export enum Tool {
+    DEFAULT = 0,
+    FRAME = 1,
+  }
+
   export type AppModel = {
     page: string // the root canvas
+    currentTool: Tool
   }
 }
