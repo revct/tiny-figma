@@ -2,14 +2,11 @@
 import  {Canvas} from "../helpers/graphics_helpers";
 import {vec2, mat2d} from 'gl-matrix'
 import {invert} from "../helpers/matrix_helpers";
-import {Fullscreen} from "./types";
-import SceneGraph = Fullscreen.SceneGraph;
-import AppModel = Fullscreen.AppModel;
-import SceneGraphNode = Fullscreen.SceneGraphNode;
-import Tool = Fullscreen.Tool;
+import {Model} from "./types";
 import {Dispatch} from "react-redux";
 import {Change, observeObject} from "../helpers/observe_helpers";
 import {actions} from "../web/actions";
+import {SceneGraph, SceneGraphListener} from "./scene";
 
 
 // TODO: turn this into an interator when I figure out how to get them to work in Typescript
@@ -63,7 +60,7 @@ export const zoomCameraRetainingOrigin = (A: mat2d, scale: number, x: vec2): mat
   return A
 }
 
-export class Editor {
+export class Editor implements SceneGraphListener {
   // Where we render.
   canvas: Canvas
 
@@ -72,7 +69,7 @@ export class Editor {
 
   // The state of the application
   sceneGraph: SceneGraph
-  appModel: AppModel
+  appModel: Model.App
 
   wasUpdated: {
     sceneGraph: boolean,
@@ -85,12 +82,14 @@ export class Editor {
   constructor(
     canvasEl: HTMLCanvasElement,
     sceneGraph: SceneGraph,
-    appModel: AppModel
+    appModel: Model.App
   ) {
     this.canvas = new Canvas(canvasEl)
     this.cameraMatrix = mat2d.fromTranslation(mat2d.create(), [this.canvas.width() * 0.5, this.canvas.height() * 0.5])
     this.sceneGraph = sceneGraph
     this.appModel = appModel
+
+    this.sceneGraph.addSceneGraphListener(this)
 
     this.wasUpdated = {sceneGraph: false, appModel: false}
 
@@ -117,19 +116,23 @@ export class Editor {
   ////////////////////////////////////////////////////////////////////////////////
   // These functions need to be bound to the outside world!
   ////////////////////////////////////////////////////////////////////////////////
-  onSceneGraphChange(change: Change) {
+  onAppModelChange(change: Change<Model.App>) {
+    this.wasUpdated.appModel = true
+  }
+  onNodeAdded(guid: string) {
+    this.wasUpdated.sceneGraph = true
+  }
+  onNodeRemoved(guid: string) {
+    this.wasUpdated.sceneGraph = true
+  }
+  onNodeChanged(guid: string, change: Change<Model.Node>) {
     this.wasUpdated.sceneGraph = true
   }
 
-  onAppModelChange(change: Change) {
-    console.log('change')
-    this.wasUpdated.appModel = true
-  }
-
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
 
-  switchTool(tool: Tool) {
+  switchTool(tool: Model.Tool) {
     this.appModel.currentTool = tool
   }
 
@@ -144,7 +147,7 @@ export class Editor {
     }
   }
 
-  private recursivelyRender(node: SceneGraphNode, m: mat2d) {
+  private recursivelyRender(node: Model.Node, m: mat2d) {
     const mm: mat2d = mat2d.multiply(mat2d.create(), m, node.relativeTransform)
 
     if (node.type == 'FRAME') {
@@ -159,7 +162,7 @@ export class Editor {
     }
 
     for (const childGUID of node.children) {
-      const child = this.sceneGraph[childGUID] as SceneGraphNode
+      const child = this.sceneGraph.object()[childGUID]
       this.recursivelyRender(child, mm)
     }
   }
@@ -173,7 +176,7 @@ export class Editor {
       this.canvas.drawLine('#aaa', transformArray(path, m))
     }
 
-    const root = this.sceneGraph[this.appModel.page] as SceneGraphNode
+    const root = this.sceneGraph.object()[this.appModel.page]
     this.recursivelyRender(root, m)
 
     this.canvas.flush()

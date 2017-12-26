@@ -1,55 +1,55 @@
 
 export type ChangeType = 'DELETE' | 'SET'
 
-export interface Change {
+export interface Change<T> {
+  object: T
   key: PropertyKey
   oldValue: any
   newValue?: any
   type: 'DELETE' | 'SET'
 }
 
-export type ChangeListener = (change: Change) => void
+export type ChangeListener<T> = (change: Change<T>) => void
 
-export class Observer {
-  changeListeners: Set<ChangeListener>
+export class Observer<T> {
+  changeListeners: Set<ChangeListener<T>>
 
   constructor() {
     this.changeListeners = new Set()
   }
 
-  addListener(l: ChangeListener) {
+  addListener(l: ChangeListener<T>) {
     this.changeListeners.add(l)
   }
 
-  removeListener(l: ChangeListener) {
+  removeListener(l: ChangeListener<T>) {
     this.changeListeners.delete(l)
   }
 
-  notifyChange(c: Change) {
+  notifyChange(c: Change<T>) {
     for (const l of this.changeListeners) {
       l(c)
     }
   }
 }
 
-export const observeObject = <T> (object: T & object): [T, Observer] => {
-  const observer = new Observer()
+export const observeObject = <T> (object: T & object, observer: Observer<T>): T => {
   const proxy = new Proxy(object, {
     set(target, key, newValue, receiver) {
       const oldValue = object[key]
       object[key] = newValue
 
-      observer.notifyChange({key, oldValue, newValue, type: 'SET'})
+      observer.notifyChange({object, key, oldValue, newValue, type: 'SET'})
       return true
     },
     deleteProperty(target, key) {
       const oldValue = object[key]
       delete object[key]
 
-      observer.notifyChange({key, oldValue, type: 'DELETE'})
+      observer.notifyChange({object, key, oldValue, type: 'DELETE'})
       return true
     }
   });
 
-  return [proxy as T, observer]
+  return proxy as T
 }

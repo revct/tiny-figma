@@ -1,7 +1,7 @@
 
 import {mat2d} from "gl-matrix";
 
-export namespace Fullscreen {
+export namespace Model {
   export type NodeType = 'CANVAS' | 'FRAME'
 
   export interface BaseNode {
@@ -23,10 +23,10 @@ export namespace Fullscreen {
     height: number
   }
 
-  export type SceneGraphNode = FrameNode | CanvasNode
+  export type Node = FrameNode | CanvasNode
 
-  export type SceneGraph = {
-    [nodeId: string]: SceneGraphNode
+  export type Scene = {
+    [nodeId: string]: Node
   }
 
   export enum Tool {
@@ -34,7 +34,7 @@ export namespace Fullscreen {
     FRAME = 1,
   }
 
-  export type AppModel = {
+  export type App = {
     page: string // the root canvas
     currentTool: Tool
   }

@@ -1,14 +1,14 @@
 import {actions} from './actions';
 import {Action} from '../helpers/redux_helpers';
 import {combineReducers, Reducer} from 'redux'
-import {Fullscreen} from "../fullscreen/types";
+import {Model} from "../fullscreen/types";
 
 export type SceneGraph = {
-  mutable: Fullscreen.SceneGraph
+  mutable: Model.Scene
 }
 
 export type AppModel = {
-  mutable: Fullscreen.AppModel
+  mutable: Model.App
 }
 
 export type State = {

@@ -10,13 +10,14 @@ import {State, reducer} from './web/reducers'
 import {Editor} from './fullscreen/editor'
 import {asyncSleep} from "./helpers/async_helpers";
 import {actions} from "./web/actions";
-import {Fullscreen} from "./fullscreen/types";
+import {Model} from "./fullscreen/types";
 import {mat2d} from "gl-matrix";
 import {ToolRoot} from "./web/components/ToolPicker";
 import {forwardActionsToFullscreen} from "./web/middleware";
 import {observeObject, Observer} from "./helpers/observe_helpers";
+import {SceneGraph} from "./fullscreen/scene";
 
-const [sceneGraph, sceneGraphObserver]: [Fullscreen.SceneGraph, Observer] = observeObject<Fullscreen.SceneGraph>({
+const sceneGraph: SceneGraph = new SceneGraph({
   root: {
     guid: 'root',
     type: 'CANVAS',
@@ -59,10 +60,11 @@ const [sceneGraph, sceneGraphObserver]: [Fullscreen.SceneGraph, Observer] = obse
   }
 })
 
-const [appModel, appModelObserver]: [Fullscreen.AppModel, Observer] = observeObject<Fullscreen.AppModel>({
+const appModelObserver: Observer<Model.App> = new Observer()
+const appModel = observeObject<Model.App>({
   page: 'root',
-  currentTool: Fullscreen.Tool.DEFAULT
-})
+  currentTool: Model.Tool.DEFAULT
+}, appModelObserver)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -78,10 +80,9 @@ const store = redux.createStore<State>(
 )
 
 appModelObserver.addListener(c => editor.onAppModelChange(c))
-sceneGraphObserver.addListener(c => editor.onSceneGraphChange(c))
 editor.sendActionToWeb = store.dispatch
 
-store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph));
+store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph.object()));
 store.dispatch(actions.toWeb.injectAppModel(appModel));
 
 ReactDOM.render(
