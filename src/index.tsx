@@ -14,8 +14,9 @@ import {Fullscreen} from "./fullscreen/types";
 import {mat2d} from "gl-matrix";
 import {ToolRoot} from "./web/components/ToolPicker";
 import {forwardActionsToFullscreen} from "./web/middleware";
+import {observeObject, Observer} from "./helpers/observe_helpers";
 
-const sceneGraph: Fullscreen.SceneGraph = {
+const [sceneGraph, sceneGraphObserver]: [Fullscreen.SceneGraph, Observer] = observeObject<Fullscreen.SceneGraph>({
   root: {
     guid: 'root',
     type: 'CANVAS',
@@ -56,12 +57,12 @@ const sceneGraph: Fullscreen.SceneGraph = {
     width: 50,
     height: 50
   }
-}
+})
 
-const appModel: Fullscreen.AppModel = {
+const [appModel, appModelObserver]: [Fullscreen.AppModel, Observer] = observeObject<Fullscreen.AppModel>({
   page: 'root',
   currentTool: Fullscreen.Tool.DEFAULT
-}
+})
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -76,6 +77,8 @@ const store = redux.createStore<State>(
   redux.applyMiddleware(forwardActionsToFullscreen(editor))
 )
 
+appModelObserver.addListener(c => editor.onAppModelChange(c))
+sceneGraphObserver.addListener(c => editor.onSceneGraphChange(c))
 editor.sendActionToWeb = store.dispatch
 
 store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph));

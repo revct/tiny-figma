@@ -8,6 +8,7 @@ import AppModel = Fullscreen.AppModel;
 import SceneGraphNode = Fullscreen.SceneGraphNode;
 import Tool = Fullscreen.Tool;
 import {Dispatch} from "react-redux";
+import {Change, observeObject} from "../helpers/observe_helpers";
 import {actions} from "../web/actions";
 
 
@@ -63,10 +64,22 @@ export const zoomCameraRetainingOrigin = (A: mat2d, scale: number, x: vec2): mat
 }
 
 export class Editor {
+  // Where we render.
   canvas: Canvas
+
+  // What are we looking at?
   cameraMatrix: mat2d
+
+  // The state of the application
   sceneGraph: SceneGraph
   appModel: AppModel
+
+  wasUpdated: {
+    sceneGraph: boolean,
+    appModel: boolean
+  }
+
+  // Injected to help us communicate with web
   sendActionToWeb: Dispatch<any>
 
   constructor(
@@ -78,6 +91,8 @@ export class Editor {
     this.cameraMatrix = mat2d.fromTranslation(mat2d.create(), [this.canvas.width() * 0.5, this.canvas.height() * 0.5])
     this.sceneGraph = sceneGraph
     this.appModel = appModel
+
+    this.wasUpdated = {sceneGraph: false, appModel: false}
 
     canvasEl.onmousemove = (event: MouseEvent) => {
       const viewportPosition: vec2 = getMouseLocation(canvasEl, event)
@@ -99,12 +114,34 @@ export class Editor {
     }
   }
 
+  ////////////////////////////////////////////////////////////////////////////////
+  // These functions need to be bound to the outside world!
+  ////////////////////////////////////////////////////////////////////////////////
+  onSceneGraphChange(change: Change) {
+    this.wasUpdated.sceneGraph = true
+  }
+
+  onAppModelChange(change: Change) {
+    console.log('change')
+    this.wasUpdated.appModel = true
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+
   switchTool(tool: Tool) {
     this.appModel.currentTool = tool
-    this.sendActionToWeb(actions.toWeb.notifyUpdatedAppModel())
   }
 
   think(ms: number) {
+    if (this.wasUpdated.appModel) {
+      this.sendActionToWeb(actions.toWeb.notifyUpdatedAppModel())
+      this.wasUpdated.appModel = false
+    }
+    if (this.wasUpdated.sceneGraph) {
+      this.sendActionToWeb(actions.toWeb.notifyUpdatedSceneGraph())
+      this.wasUpdated.sceneGraph = false
+    }
   }
 
   private recursivelyRender(node: SceneGraphNode, m: mat2d) {

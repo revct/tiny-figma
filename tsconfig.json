@@ -2,12 +2,13 @@
     "compilerOptions": {
         "outDir": "./dist/",
         "sourceMap": true,
-        "noImplicitAny": true,
         "module": "commonjs",
-        "target": "es5",
+        "target": "es6",
         "jsx": "react",
         "strictNullChecks": true,
-        "lib": ["es5", "es2015.promise", "DOM", "ScriptHost"]
+        "noImplicitAny": true,
+        "suppressImplicitAnyIndexErrors": true,
+        "lib": ["es6", "es5", "es2015.promise", "DOM", "ScriptHost"]
     },
     "include": [
         "./src/**/*"
