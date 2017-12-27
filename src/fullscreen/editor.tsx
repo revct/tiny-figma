@@ -1,13 +1,19 @@
 
-import  {Canvas} from "../helpers/graphics_helpers";
+import {Canvas, Drawable} from "./graphics";
 import {vec2, mat2d} from 'gl-matrix'
 import {invert} from "../helpers/matrix_helpers";
 import {Model} from "./types";
 import {Dispatch} from "react-redux";
 import {Change, observeObject} from "../helpers/observe_helpers";
 import {actions} from "../web/actions";
-import {SceneGraph, SceneGraphListener} from "./scene";
+import {SceneGraph, SceneGraphListener, SceneNode} from "./scene";
+import {FrameMouseBehavior, MouseBehavior, MouseBehaviorEvent, SelectionMouseBehavior} from "./behaviors";
 
+
+let _nextGUID = 0
+export const generateGUID = () => {
+  return `${_nextGUID ++}`
+}
 
 // TODO: turn this into an interator when I figure out how to get them to work in Typescript
 const transformArray = (points: vec2[], transform: mat2d): vec2[] => {
@@ -15,6 +21,27 @@ const transformArray = (points: vec2[], transform: mat2d): vec2[] => {
     const result: vec2 = vec2.create()
     vec2.transformMat2d(result, point, transform)
     return result
+  })
+}
+const transformDrawables = (drawables: Drawable[], transform: mat2d): Drawable[] => {
+  return drawables.map((d: Drawable): Drawable => {
+    switch (d.type) {
+      case 'RECTANGLE':
+        return {
+          ...d,
+          topLeftCorner: vec2.transformMat2d(vec2.create(), d.topLeftCorner, transform),
+          bottomRightCorner: vec2.transformMat2d(vec2.create(), d.bottomRightCorner, transform)
+        }
+      case 'LINE':
+        return {
+          ...d,
+          points: transformArray(d.points, transform)
+        }
+      case 'BACKGROUND':
+        return d
+      default:
+        return d
+    }
   })
 }
 
@@ -36,20 +63,6 @@ const AXIS_LINES = [
   ]
 ]
 
-const getMouseLocation = (el: HTMLCanvasElement, event: MouseEvent | MouseWheelEvent): vec2 => {
-  return vec2.fromValues(
-    event.clientX - el.offsetLeft,
-    event.clientY - el.offsetTop
-  )
-}
-
-const getMouseDeltaFromMiddle = (el: HTMLCanvasElement, event: MouseEvent | MouseWheelEvent): vec2 => {
-  return vec2.fromValues(
-    (event.clientX - el.offsetLeft) - el.width * 0.5,
-    (event.clientY - el.offsetTop) - el.height * 0.5
-  )
-}
-
 export const zoomCameraRetainingOrigin = (A: mat2d, scale: number, x: vec2): mat2d => {
   const nx:vec2 = vec2.negate(vec2.create(), x)
 
@@ -58,6 +71,16 @@ export const zoomCameraRetainingOrigin = (A: mat2d, scale: number, x: vec2): mat
   mat2d.multiply(A, mat2d.fromTranslation(mat2d.create(), x), A)
 
   return A
+}
+
+export const viewportToAbsolute = (viewportPosition: vec2, cameraMatrix: mat2d) => {
+  const absolutePosition = vec2.transformMat2d(vec2.create(), viewportPosition, invert(cameraMatrix))
+  return absolutePosition
+}
+
+export const absoluteToViewport = (absolutePosition: vec2, cameraMatrix: mat2d) => {
+  const viewportPosition = vec2.transformMat2d(vec2.create(), absolutePosition, cameraMatrix)
+  return viewportPosition
 }
 
 export class Editor implements SceneGraphListener {
@@ -70,6 +93,9 @@ export class Editor implements SceneGraphListener {
   // The state of the application
   sceneGraph: SceneGraph
   appModel: Model.App
+
+  mouseBehaviors: MouseBehavior[]
+  activeBehavior: MouseBehavior | null
 
   wasUpdated: {
     sceneGraph: boolean,
@@ -90,17 +116,54 @@ export class Editor implements SceneGraphListener {
     this.appModel = appModel
 
     this.sceneGraph.addSceneGraphListener(this)
-
     this.wasUpdated = {sceneGraph: false, appModel: false}
 
-    canvasEl.onmousemove = (event: MouseEvent) => {
-      const viewportPosition: vec2 = getMouseLocation(canvasEl, event)
-      const absolutePosition = vec2.transformMat2d(vec2.create(), viewportPosition, invert(this.cameraMatrix))
+    this.updateMouseBehaviors()
+
+    const getMouseLocation = (event: MouseEvent | MouseWheelEvent): vec2 => {
+      return vec2.fromValues(
+        event.clientX - canvasEl.offsetLeft,
+        event.clientY - canvasEl.offsetTop
+      )
     }
 
+    const getMouseBehaviorEvent = (event: MouseEvent) => {
+      const viewportXY: vec2 = getMouseLocation(event)
+      return new MouseBehaviorEvent(viewportXY, this.cameraMatrix)
+    }
+
+    document.onkeydown = (event: KeyboardEvent) => {
+      if (event.key === 'f') {
+        this.switchTool(Model.Tool.FRAME)
+      }
+      if (event.keyCode === 27) {
+        this.switchTool(Model.Tool.DEFAULT)
+      }
+    }
+    canvasEl.onmousedown = (event: MouseEvent) => {
+      const behaviorEvent = getMouseBehaviorEvent(event)
+      for (const behavior of this.mouseBehaviors) {
+        if (behavior.handleMouseDown(behaviorEvent)) {
+          this.activeBehavior = behavior
+        }
+      }
+    }
+    canvasEl.onmouseup = (event: MouseEvent) => {
+      if (this.activeBehavior)
+        this.activeBehavior.handleMouseUp(getMouseBehaviorEvent(event))
+    }
+    canvasEl.onmousemove = (event: MouseEvent) => {
+      if (this.activeBehavior) {
+        if (event.buttons) {
+          this.activeBehavior.handleMouseDrag(getMouseBehaviorEvent(event))
+        } else {
+          this.activeBehavior.handleMouseMove(getMouseBehaviorEvent(event))
+        }
+      }
+    }
     canvasEl.onmousewheel = (event: MouseWheelEvent) => {
       if (Math.abs(event.wheelDelta) > 100) {
-        const viewportMouse: vec2 = getMouseLocation(canvasEl, event)
+        const viewportMouse: vec2 = getMouseLocation(event)
         const zoom = 1 + 0.05 * event.wheelDelta / 120
 
         this.cameraMatrix = zoomCameraRetainingOrigin(this.cameraMatrix, zoom, viewportMouse)
@@ -116,7 +179,24 @@ export class Editor implements SceneGraphListener {
   ////////////////////////////////////////////////////////////////////////////////
   // These functions need to be bound to the outside world!
   ////////////////////////////////////////////////////////////////////////////////
+  updateMouseBehaviors() {
+    this.activeBehavior = null
+    switch (this.appModel.currentTool) {
+      case Model.Tool.DEFAULT:
+        this.mouseBehaviors = [new SelectionMouseBehavior()]
+        break
+      case Model.Tool.FRAME:
+        this.mouseBehaviors = [new FrameMouseBehavior(this.sceneGraph, this.appModel)]
+        break
+      default:
+        this.mouseBehaviors = []
+        break
+    }
+  }
   onAppModelChange(change: Change<Model.App>) {
+    if (change.key === 'currentTool' && change.oldValue !== change.newValue) {
+      this.updateMouseBehaviors()
+    }
     this.wasUpdated.appModel = true
   }
   onNodeAdded(guid: string) {
@@ -147,37 +227,28 @@ export class Editor implements SceneGraphListener {
     }
   }
 
-  private recursivelyRender(node: Model.Node, m: mat2d) {
-    const mm: mat2d = mat2d.multiply(mat2d.create(), m, node.relativeTransform)
+  private recursivelyRender(node: SceneNode) {
+    const drawables = node.render()
+    this.canvas.drawDrawables(transformDrawables(drawables, this.cameraMatrix))
 
-    if (node.type == 'FRAME') {
-      const topLeftCorner: vec2 = vec2.fromValues(0, 0)
-      const bottomRightCorner: vec2 = vec2.fromValues(node.width, node.height)
-
-      // This code does not handle rotation!
-      vec2.transformMat2d(topLeftCorner, topLeftCorner, mm)
-      vec2.transformMat2d(bottomRightCorner, bottomRightCorner, mm)
-
-      this.canvas.drawRect('#cfc', topLeftCorner, bottomRightCorner)
-    }
-
-    for (const childGUID of node.children) {
-      const child = this.sceneGraph.object()[childGUID]
-      this.recursivelyRender(child, mm)
+    for (const childGUID of node.children()) {
+      const child = this.sceneGraph.getNode(childGUID)
+      if (child) {
+        this.recursivelyRender(child)
+      }
     }
   }
 
   render() {
-    const m: mat2d = mat2d.create()
-    mat2d.multiply(m, this.cameraMatrix, m)
-
     this.canvas.drawBackground('#fafafa')
     for (const path of AXIS_LINES) {
-      this.canvas.drawLine('#aaa', transformArray(path, m))
+      this.canvas.drawLine('#aaa', transformArray(path, this.cameraMatrix))
     }
 
-    const root = this.sceneGraph.object()[this.appModel.page]
-    this.recursivelyRender(root, m)
+    const root = this.sceneGraph.getNode(this.appModel.page)
+    if (root) {
+      this.recursivelyRender(root)
+    }
 
     this.canvas.flush()
   }

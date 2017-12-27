@@ -21,29 +21,25 @@ const sceneGraph: SceneGraph = new SceneGraph({
   root: {
     guid: 'root',
     type: 'CANVAS',
-    position: Math.random(),
-    children: ['frame0', 'frame1', 'frame2'],
-    relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, -50]),
+    relativeTransform: mat2d.fromTranslation(mat2d.create(), [0, 0]),
   },
   frame0: {
     guid: 'frame0',
     type: 'FRAME',
     resizeToFit: false,
-    position: Math.random(),
     parent: 'root',
-    children: [],
-    relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, -50]),
-    width: 50,
-    height: 50
+    color: '#cfc',
+    relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, 0]),
+    width: 100,
+    height: 100
   },
   frame1: {
     guid: 'frame1',
     type: 'FRAME',
     resizeToFit: false,
-    position: Math.random(),
-    parent: 'root',
-    children: [],
-    relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, 25]),
+    parent: 'frame0',
+    color: '#fcc',
+    relativeTransform: mat2d.fromTranslation(mat2d.create(), [20, 20]),
     width: 50,
     height: 50
   },
@@ -51,12 +47,11 @@ const sceneGraph: SceneGraph = new SceneGraph({
     guid: 'frame2',
     type: 'FRAME',
     resizeToFit: false,
-    position: Math.random(),
-    parent: 'root',
-    children: [],
-    relativeTransform: mat2d.fromTranslation(mat2d.create(), [-25, -25]),
-    width: 50,
-    height: 50
+    parent: 'frame1',
+    color: '#ccf',
+    relativeTransform: mat2d.fromTranslation(mat2d.create(), [10, 10]),
+    width: 30,
+    height: 30
   }
 })
 
@@ -82,7 +77,7 @@ const store = redux.createStore<State>(
 appModelObserver.addListener(c => editor.onAppModelChange(c))
 editor.sendActionToWeb = store.dispatch
 
-store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph.object()));
+store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph.getModel()));
 store.dispatch(actions.toWeb.injectAppModel(appModel));
 
 ReactDOM.render(

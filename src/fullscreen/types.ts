@@ -6,8 +6,7 @@ export namespace Model {
 
   export interface BaseNode {
     readonly guid: string
-    position: number // Children are sorted using this as a key
-    children: string[] // The GUIDs of child nodes
+    // position: number // Children are sorted using this as a key
     relativeTransform: mat2d
   }
 
@@ -21,9 +20,18 @@ export namespace Model {
     parent: string // The GUID of the parent node
     width: number // Size is not present on CANVAS
     height: number
+    color: string
   }
 
   export type Node = FrameNode | CanvasNode
+
+  export function isParentableNode(n: Node): n is FrameNode {
+    return n.type === 'FRAME'
+  }
+
+  export function isFrame(n: Node): n is FrameNode {
+    return n.type === 'FRAME'
+  }
 
   export type Scene = {
     [nodeId: string]: Node

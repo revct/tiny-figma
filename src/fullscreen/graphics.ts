@@ -2,6 +2,26 @@
 import {mat2d, vec2} from 'gl-matrix'
 import {createElement} from "react";
 
+export interface Rectangle {
+  type: 'RECTANGLE'
+  color: string
+  topLeftCorner: vec2
+  bottomRightCorner: vec2
+}
+
+export interface Line {
+  type: 'LINE'
+  color: string
+  points: vec2[]
+}
+
+export interface Background {
+  type: 'BACKGROUND'
+  color: string
+}
+
+export type Drawable = Rectangle | Line | Background
+
 export class Canvas {
   renderEl: HTMLCanvasElement
   renderContext: CanvasRenderingContext2D
@@ -73,6 +93,22 @@ export class Canvas {
       this.backContext.lineTo(point[0], point[1])
     }
     this.backContext.stroke()
+  }
+
+  drawDrawables(ds: Drawable[]) {
+    for (const d of ds) {
+      switch (d.type) {
+        case 'RECTANGLE':
+          this.drawRect(d.color, d.topLeftCorner, d.bottomRightCorner)
+          break
+        case 'LINE':
+          this.drawLine(d.color, d.points)
+          break
+        case 'BACKGROUND':
+          this.drawBackground(d.color)
+          break
+      }
+    }
   }
 
   flush() {
