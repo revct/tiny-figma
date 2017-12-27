@@ -227,7 +227,7 @@ export class Editor implements SceneGraphListener {
     }
   }
 
-  private recursivelyRender(node: SceneNode) {
+  private recursivelyRender(node: SceneNode<any>) {
     const drawables = node.render()
     this.canvas.drawDrawables(transformDrawables(drawables, this.cameraMatrix))
 

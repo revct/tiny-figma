@@ -1,8 +1,9 @@
 import {mat2d, vec2} from "gl-matrix";
 import {Drawable} from "./graphics";
 import {absoluteToViewport, generateGUID, viewportToAbsolute} from "./editor";
-import {SceneGraph} from "./scene";
+import {SceneGraph, SceneNode} from "./scene";
 import {Model} from "./types";
+import {randomColorPicker} from "../helpers/primitive_helpers";
 
 export class MouseBehaviorEvent {
   viewportXY: vec2
@@ -55,6 +56,8 @@ export class FrameMouseBehavior implements MouseBehavior {
   startAbsoluteXY: vec2
   endAbsoluteXY: vec2
 
+  newGUID: string | null
+
   constructor(scene: SceneGraph, appModel: Model.App) {
     this.scene = scene
     this.appModel = appModel
@@ -88,18 +91,35 @@ export class FrameMouseBehavior implements MouseBehavior {
 
   handleMouseDown(event: MouseBehaviorEvent): boolean {
     this.startAbsoluteXY = event.absoluteXY
+    this.endAbsoluteXY = event.absoluteXY
+
+    let newNode = this.scene.addFrame({
+      parent: this.appModel.page,
+      width: this.width(),
+      height: this.height(),
+      color: randomColorPicker(),
+      relativeTransform: this.relativeTransform(),
+    }) as SceneNode<any>
+
+    this.newGUID = newNode.get('guid')
     return true
   }
 
   handleMouseUp(event: MouseBehaviorEvent): void {
     this.endAbsoluteXY = event.absoluteXY
-    this.scene.addFrame({
-      parent: this.appModel.page,
-      width: this.width(),
-      height: this.height(),
-      color: '#cfc',
-      relativeTransform: this.relativeTransform(),
-    })
+
+    if (!this.newGUID) return
+
+    let newNode = this.scene.getNode(this.newGUID)
+    if (!newNode) return
+
+    if (newNode.isFrame()) {
+      newNode.set('width', this.width())
+      newNode.set('height', this.height())
+      newNode.set('relativeTransform', this.relativeTransform())
+    }
+
+    this.newGUID = null
   }
 
   handleMouseMove(event: MouseBehaviorEvent): void {
@@ -107,6 +127,17 @@ export class FrameMouseBehavior implements MouseBehavior {
 
   handleMouseDrag(event: MouseBehaviorEvent): void {
     this.endAbsoluteXY = event.absoluteXY
+
+    if (!this.newGUID) return
+
+    let newNode = this.scene.getNode(this.newGUID)
+    if (!newNode) return
+
+    if (newNode.isFrame()) {
+      newNode.set('width', this.width())
+      newNode.set('height', this.height())
+      newNode.set('relativeTransform', this.relativeTransform())
+    }
   }
 
   render(): Drawable[] {

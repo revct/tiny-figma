@@ -16,6 +16,7 @@ import {ToolRoot} from "./web/components/ToolPicker";
 import {forwardActionsToFullscreen} from "./web/middleware";
 import {observeObject, Observer} from "./helpers/observe_helpers";
 import {SceneGraph} from "./fullscreen/scene";
+import {randomColorPicker} from "./helpers/primitive_helpers";
 
 const sceneGraph: SceneGraph = new SceneGraph({
   root: {
@@ -28,7 +29,7 @@ const sceneGraph: SceneGraph = new SceneGraph({
     type: 'FRAME',
     resizeToFit: false,
     parent: 'root',
-    color: '#cfc',
+    color: randomColorPicker(),
     relativeTransform: mat2d.fromTranslation(mat2d.create(), [50, 0]),
     width: 100,
     height: 100
@@ -38,7 +39,7 @@ const sceneGraph: SceneGraph = new SceneGraph({
     type: 'FRAME',
     resizeToFit: false,
     parent: 'frame0',
-    color: '#fcc',
+    color: randomColorPicker(),
     relativeTransform: mat2d.fromTranslation(mat2d.create(), [20, 20]),
     width: 50,
     height: 50
@@ -48,7 +49,7 @@ const sceneGraph: SceneGraph = new SceneGraph({
     type: 'FRAME',
     resizeToFit: false,
     parent: 'frame1',
-    color: '#ccf',
+    color: randomColorPicker(),
     relativeTransform: mat2d.fromTranslation(mat2d.create(), [10, 10]),
     width: 30,
     height: 30

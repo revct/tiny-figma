@@ -4,6 +4,8 @@ import {mat2d, vec2} from "gl-matrix";
 import {generateGUID} from "./editor";
 import isParentableNode = Model.isParentableNode;
 import {Drawable} from "./graphics";
+import set = Reflect.set;
+import FrameNode = Model.FrameNode;
 
 export interface SceneGraphListener {
   onNodeAdded: (guid: string) => void
@@ -11,12 +13,12 @@ export interface SceneGraphListener {
   onNodeChanged: (guid: string, change: Change<Model.Node>) => void
 }
 
-export class SceneNode {
-  private data: Model.Node
+export class SceneNode<TNode extends Model.Node> {
+  private data: TNode
   private derived: DerivedNodeProperties
   private scene: SceneGraph
 
-  constructor(data: Model.Node, derived: DerivedNodeProperties, scene: SceneGraph) {
+  constructor(data: TNode, derived: DerivedNodeProperties, scene: SceneGraph) {
     this.data = data
     this.derived = derived
     this.scene = scene
@@ -26,8 +28,16 @@ export class SceneNode {
     return this.derived.children
   }
 
-  get(k: keyof Model.Node) {
-    return this.data[k]
+  isFrame(): this is SceneNode<FrameNode> {
+    return Model.isFrame(this.data)
+  }
+
+  set<K extends keyof TNode>(key: K, value: TNode[K]) {
+    this.data[key] = value
+  }
+
+  get<K extends keyof TNode>(key: K): TNode[K] {
+    return this.data[key]
   }
 
   render(): Drawable[] {
@@ -169,19 +179,21 @@ export class SceneGraph {
     }
   ) {
     const guid = generateGUID()
-    this.scene[guid] = {
+    this.addNode({
       type: 'FRAME',
       resizeToFit: false,
       guid: guid,
       ...n
-    }
+    })
+
+    return this.getNode(guid)
   }
 
   ////////////////////////////////////////////////////////////////////////////////
   // Getters.
   ////////////////////////////////////////////////////////////////////////////////
 
-  getNode(guid: string): SceneNode | null {
+  getNode(guid: string): SceneNode<any> | null {
     if (guid in this.scene && guid in this.derivedScene) {
       return new SceneNode(this.scene[guid], this.derivedScene[guid], this)
     }
