@@ -323,13 +323,13 @@ export class SceneGraph {
     return this.scene
   }
 
-  hits(rootGUID: string, absolutePoint: vec2, threshold: number): [HitResult, string | null] {
+  hits(rootGUID: string, absolutePoint: vec2, threshold: number, check?: HitCheck): [HitResult, string | null] {
     const root = this.getNode(rootGUID) as SceneNode<any>
-    const rootResult = root.hits(absolutePoint, threshold)
+    const rootResult = root.hits(absolutePoint, threshold, check)
 
     if (rootResult !== HitResult.NONE) {
       for (const childGUID of root.children()) {
-        const [grandchildResult, grandchildGUID] = this.hits(childGUID, absolutePoint, threshold)
+        const [grandchildResult, grandchildGUID] = this.hits(childGUID, absolutePoint, threshold, check)
         if (grandchildResult !== HitResult.NONE) {
           return [grandchildResult, grandchildGUID]
         }
