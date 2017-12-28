@@ -31,6 +31,9 @@ export interface MouseBehavior {
 }
 
 export class SelectionMouseBehavior implements MouseBehavior {
+  scene: SceneGraph
+  appModel: Model.App
+
   handleMouseDown(event: MouseBehaviorEvent): boolean {
     return false
   }

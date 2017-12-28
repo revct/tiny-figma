@@ -6,6 +6,7 @@ import {Drawable, transformDrawable} from "./graphics";
 import set = Reflect.set;
 import FrameNode = Model.FrameNode;
 import {invert} from "../helpers/matrix_helpers";
+import CanvasNode = Model.CanvasNode;
 
 export interface SceneGraphListener {
   onNodeAdded: (guid: string) => void
@@ -51,6 +52,10 @@ export class SceneNode<TNode extends Model.Node> {
     return Model.isFrame(this.data)
   }
 
+  isCanvas(): this is SceneNode<CanvasNode> {
+    return Model.isCanvas(this.data)
+  }
+
   set<K extends keyof TNode>(key: K, value: TNode[K]) {
     this.data[key] = value
   }
@@ -80,6 +85,10 @@ export class SceneNode<TNode extends Model.Node> {
       if (x >= w - t) { return HitResult.RIGHT }
       if (y <= t) { return HitResult.TOP }
       if (y >= h - t) { return HitResult.BOTTOM }
+    }
+
+    if (this.isCanvas()) {
+      return HitResult.INSIDE
     }
 
     return HitResult.NONE
@@ -302,6 +311,23 @@ export class SceneGraph {
 
   getModel(): Readonly<Model.Scene> {
     return this.scene
+  }
+
+  hits(rootGUID: string, absolutePoint: vec2, threshold: number): [HitResult, string | null] {
+    const root = this.getNode(rootGUID) as SceneNode<any>
+    const rootResult = root.hits(absolutePoint, threshold)
+
+    if (rootResult !== HitResult.NONE) {
+      for (const childGUID of root.children()) {
+        const [grandchildResult, grandchildGUID] = this.hits(childGUID, absolutePoint, threshold)
+        if (grandchildResult !== HitResult.NONE) {
+          return [grandchildResult, grandchildGUID]
+        }
+      }
+      return [rootResult, rootGUID]
+    }
+
+    return [HitResult.NONE, null]
   }
 
   ////////////////////////////////////////////////////////////////////////////////

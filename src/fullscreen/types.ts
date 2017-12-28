@@ -29,6 +29,10 @@ export namespace Model {
     return n.type === 'FRAME'
   }
 
+  export function isCanvas(n: Node): n is CanvasNode {
+    return n.type === 'CANVAS'
+  }
+
   export type Scene = {
     [nodeId: string]: Node
   }
