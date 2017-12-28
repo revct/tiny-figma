@@ -14,11 +14,11 @@ export interface SceneGraphListener {
   onNodeChanged: (guid: string, change: Change<Model.Node>) => void
 }
 
-// export type HitCheck = {
-//   inside: boolean
-//   corners: boolean
-//   edges: boolean
-// }
+export type HitCheck = {
+  inside?: boolean
+  corners?: boolean
+  edges?: boolean
+}
 
 export enum HitResult {
   NONE = 'NONE',
@@ -64,7 +64,17 @@ export class SceneNode<TNode extends Model.Node> {
     return this.data[key]
   }
 
-  hits(absolutePoint: vec2, threshold: number): HitResult {
+  hits(absolutePoint: vec2, threshold: number, check?: HitCheck): HitResult {
+    if (check == null) {
+      check = { inside: true, corners: true, edges: true }
+    }
+
+    // Convenience method for returning HitResult.NONE if HitCheck does not specify that
+    // we should return the found HitResult.
+    const fallback = (shouldReturnResult: boolean | undefined, result: HitResult) => {
+      return shouldReturnResult ? result : HitResult.NONE
+    }
+
     const nodePoint = vec2.transformMat2d(vec2.create(), absolutePoint, invert(this.derived.absoluteTransform))
 
     if (this.isFrame()) {
@@ -74,17 +84,17 @@ export class SceneNode<TNode extends Model.Node> {
       const t = threshold
 
       if (x < -t || x > w + t || y < -t || y > h + t) { return HitResult.NONE }
-      if (x >= t && x <= w - t && y >= t && y <= h - t) { return HitResult.INSIDE }
+      if (x >= t && x <= w - t && y >= t && y <= h - t) { return fallback(check.inside, HitResult.INSIDE) }
 
-      if (x <= t && y <= t) { return HitResult.TOP_LEFT }
-      if (x >= w - t && y <= t) { return HitResult.TOP_RIGHT }
-      if (x >= w - t && y >= h - t) { return HitResult.BOTTOM_RIGHT }
-      if (x <= t && y >= h - t) { return HitResult.BOTTOM_LEFT }
+      if (x <= t && y <= t) { return fallback(check.corners, HitResult.TOP_LEFT) }
+      if (x >= w - t && y <= t) { return fallback(check.corners, HitResult.TOP_RIGHT) }
+      if (x >= w - t && y >= h - t) { return fallback(check.corners, HitResult.BOTTOM_RIGHT) }
+      if (x <= t && y >= h - t) { return fallback(check.corners, HitResult.BOTTOM_LEFT) }
 
-      if (x <= t) { return HitResult.LEFT }
-      if (x >= w - t) { return HitResult.RIGHT }
-      if (y <= t) { return HitResult.TOP }
-      if (y >= h - t) { return HitResult.BOTTOM }
+      if (x <= t) { return fallback(check.edges, HitResult.LEFT) }
+      if (x >= w - t) { return fallback(check.edges, HitResult.RIGHT) }
+      if (y <= t) { return fallback(check.edges, HitResult.TOP) }
+      if (y >= h - t) { return fallback(check.edges, HitResult.BOTTOM) }
     }
 
     if (this.isCanvas()) {
