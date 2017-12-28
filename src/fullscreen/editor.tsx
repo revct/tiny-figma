@@ -1,5 +1,5 @@
 
-import {Canvas, Drawable} from "./graphics";
+import {Canvas, Drawable, transformArray, transformDrawables} from "./graphics";
 import {vec2, mat2d} from 'gl-matrix'
 import {invert} from "../helpers/matrix_helpers";
 import {Model} from "./types";
@@ -13,36 +13,6 @@ import {FrameMouseBehavior, MouseBehavior, MouseBehaviorEvent, SelectionMouseBeh
 let _nextGUID = 0
 export const generateGUID = () => {
   return `${_nextGUID ++}`
-}
-
-// TODO: turn this into an interator when I figure out how to get them to work in Typescript
-const transformArray = (points: vec2[], transform: mat2d): vec2[] => {
-  return points.map((point: vec2): vec2 => {
-    const result: vec2 = vec2.create()
-    vec2.transformMat2d(result, point, transform)
-    return result
-  })
-}
-const transformDrawables = (drawables: Drawable[], transform: mat2d): Drawable[] => {
-  return drawables.map((d: Drawable): Drawable => {
-    switch (d.type) {
-      case 'RECTANGLE':
-        return {
-          ...d,
-          topLeftCorner: vec2.transformMat2d(vec2.create(), d.topLeftCorner, transform),
-          bottomRightCorner: vec2.transformMat2d(vec2.create(), d.bottomRightCorner, transform)
-        }
-      case 'LINE':
-        return {
-          ...d,
-          points: transformArray(d.points, transform)
-        }
-      case 'BACKGROUND':
-        return d
-      default:
-        return d
-    }
-  })
 }
 
 const AXIS_LINES = [

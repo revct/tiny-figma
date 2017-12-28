@@ -14,7 +14,11 @@ export const randomColorPicker = createPicker([
   '#aaf',
   '#faa',
   '#afa',
-  '#ffa',
   '#faf',
-  '#aff'
+  '#aff',
+  '#acf',
+  '#fac',
+  '#afc',
+  '#faf',
+  '#aff',
 ])

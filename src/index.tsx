@@ -11,7 +11,7 @@ import {Editor} from './fullscreen/editor'
 import {asyncSleep} from "./helpers/async_helpers";
 import {actions} from "./web/actions";
 import {Model} from "./fullscreen/types";
-import {mat2d} from "gl-matrix";
+import {mat2d, vec2} from "gl-matrix";
 import {ToolRoot} from "./web/components/ToolPicker";
 import {forwardActionsToFullscreen} from "./web/middleware";
 import {observeObject, Observer} from "./helpers/observe_helpers";
@@ -53,6 +53,16 @@ const sceneGraph: SceneGraph = new SceneGraph({
     relativeTransform: mat2d.fromTranslation(mat2d.create(), [10, 10]),
     width: 30,
     height: 30
+  },
+  frame3: {
+    guid: 'frame3',
+    type: 'FRAME',
+    resizeToFit: false,
+    parent: 'root',
+    color: randomColorPicker(),
+    relativeTransform: mat2d.translate(mat2d.create(), mat2d.rotate(mat2d.create(), mat2d.create(), 3.14 * 0.1), vec2.fromValues(-100, -50)),
+    width: 50,
+    height: 50
   }
 })
 

@@ -2,11 +2,10 @@
 import {mat2d, vec2} from 'gl-matrix'
 import {createElement} from "react";
 
-export interface Rectangle {
-  type: 'RECTANGLE'
+export interface Polygon {
+  type: 'POLYGON'
   color: string
-  topLeftCorner: vec2
-  bottomRightCorner: vec2
+  points: vec2[]
 }
 
 export interface Line {
@@ -20,7 +19,38 @@ export interface Background {
   color: string
 }
 
-export type Drawable = Rectangle | Line | Background
+export type Drawable = Polygon | Line | Background
+
+// TODO: turn this into an interator when I figure out how to get them to work in Typescript
+export const transformArray = (points: vec2[], transform: mat2d): vec2[] => {
+  return points.map((point: vec2): vec2 => {
+    const result: vec2 = vec2.create()
+    vec2.transformMat2d(result, point, transform)
+    return result
+  })
+}
+
+export const transformDrawable = (d: Drawable, transform: mat2d): Drawable => {
+  switch (d.type) {
+    case 'POLYGON':
+      return {
+        ...d,
+        points: transformArray(d.points, transform)
+      }
+    case 'LINE':
+      return {
+        ...d,
+        points: transformArray(d.points, transform)
+      }
+    case 'BACKGROUND':
+      return d
+    default:
+      return d
+  }
+}
+export const transformDrawables = (drawables: Drawable[], transform: mat2d): Drawable[] => {
+  return drawables.map((d: Drawable): Drawable => transformDrawable(d, transform))
+}
 
 export class Canvas {
   renderEl: HTMLCanvasElement
@@ -68,18 +98,18 @@ export class Canvas {
     this.backContext.fillRect(0, 0, this.width(), this.height())
   }
 
-  drawRect(
+  drawPolygon(
     color: string,
-    topLeftCorner: vec2,
-    bottomRightCorner: vec2,
+    points: vec2[],
   ) {
-    const [x1, y1] = [topLeftCorner[0], topLeftCorner[1]]
-    const [x2, y2] = [bottomRightCorner[0], bottomRightCorner[1]]
-    const w = x2 - x1
-    const h = y2 - y1
-
     this.backContext.fillStyle = color
-    this.backContext.fillRect(x1, y1, w, h)
+    this.backContext.beginPath()
+    this.backContext.moveTo(points[0][0], points[0][1])
+    for (let point of points.slice(1)) {
+      this.backContext.lineTo(point[0], point[1])
+    }
+    this.backContext.moveTo(points[0][0], points[0][1])
+    this.backContext.fill()
   }
 
   drawLine(
@@ -98,8 +128,8 @@ export class Canvas {
   drawDrawables(ds: Drawable[]) {
     for (const d of ds) {
       switch (d.type) {
-        case 'RECTANGLE':
-          this.drawRect(d.color, d.topLeftCorner, d.bottomRightCorner)
+        case 'POLYGON':
+          this.drawPolygon(d.color, d.points)
           break
         case 'LINE':
           this.drawLine(d.color, d.points)

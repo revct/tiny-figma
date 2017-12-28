@@ -2,15 +2,34 @@ import {Model} from "./types";
 import {Change, observeObject, Observer} from "../helpers/observe_helpers";
 import {mat2d, vec2} from "gl-matrix";
 import {generateGUID} from "./editor";
-import isParentableNode = Model.isParentableNode;
-import {Drawable} from "./graphics";
+import {Drawable, transformDrawable} from "./graphics";
 import set = Reflect.set;
 import FrameNode = Model.FrameNode;
+import {invert} from "../helpers/matrix_helpers";
 
 export interface SceneGraphListener {
   onNodeAdded: (guid: string) => void
   onNodeRemoved: (guid: string) => void
   onNodeChanged: (guid: string, change: Change<Model.Node>) => void
+}
+
+// export type HitCheck = {
+//   inside: boolean
+//   corners: boolean
+//   edges: boolean
+// }
+
+export enum HitResult {
+  NONE = 'NONE',
+  LEFT = 'LEFT',
+  RIGHT = 'RIGHT',
+  TOP = 'TOP',
+  BOTTOM = 'BOTTOM',
+  TOP_LEFT = 'TOP_LEFT',
+  TOP_RIGHT = 'TOP_RIGHT',
+  BOTTOM_LEFT = 'BOTTOM_LEFT',
+  BOTTOM_RIGHT = 'BOTTOM_RIGHT',
+  INSIDE = 'INSIDE'
 }
 
 export class SceneNode<TNode extends Model.Node> {
@@ -40,21 +59,46 @@ export class SceneNode<TNode extends Model.Node> {
     return this.data[key]
   }
 
+  hits(absolutePoint: vec2, threshold: number): HitResult {
+    const nodePoint = vec2.transformMat2d(vec2.create(), absolutePoint, invert(this.derived.absoluteTransform))
+
+    if (this.isFrame()) {
+      const w = this.get('width')
+      const h = this.get('height')
+      const [x, y] = nodePoint
+      const t = threshold
+
+      if (x < -t || x > w + t || y < -t || y > h + t) { return HitResult.NONE }
+      if (x >= t && x <= w - t && y >= t && y <= h - t) { return HitResult.INSIDE }
+
+      if (x <= t && y <= t) { return HitResult.TOP_LEFT }
+      if (x >= w - t && y <= t) { return HitResult.TOP_RIGHT }
+      if (x >= w - t && y >= h - t) { return HitResult.BOTTOM_RIGHT }
+      if (x <= t && y >= h - t) { return HitResult.BOTTOM_LEFT }
+
+      if (x <= t) { return HitResult.LEFT }
+      if (x >= w - t) { return HitResult.RIGHT }
+      if (y <= t) { return HitResult.TOP }
+      if (y >= h - t) { return HitResult.BOTTOM }
+    }
+
+    return HitResult.NONE
+  }
+
   render(): Drawable[] {
     if (Model.isFrame(this.data)) {
       const topLeftCorner: vec2 = vec2.fromValues(0, 0)
+      const topRightCorner: vec2 = vec2.fromValues(this.data.width, 0)
       const bottomRightCorner: vec2 = vec2.fromValues(this.data.width, this.data.height)
+      const bottomLeftCorner: vec2 = vec2.fromValues(0, this.data.height)
 
-      // This code does not handle rotation!
-      vec2.transformMat2d(topLeftCorner, topLeftCorner, this.derived.absoluteTransform)
-      vec2.transformMat2d(bottomRightCorner, bottomRightCorner, this.derived.absoluteTransform)
-
-      return [{
-        type: 'RECTANGLE',
-        color: this.data.color,
-        topLeftCorner,
-        bottomRightCorner
-      }]
+      return [
+        transformDrawable({
+          type: 'POLYGON',
+          color: this.data.color,
+          points: [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner]
+        }, this.derived.absoluteTransform)
+      ]
     }
 
     return []
@@ -109,29 +153,6 @@ export class SceneGraph {
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  // Ensure that our derived data is correct.
-  ////////////////////////////////////////////////////////////////////////////////
-
-  private updateHierarchy(guid: string) {
-    const node = this.scene[guid]
-    const derived = this.derivedScene[guid]
-
-    if (isParentableNode(node)) {
-      const parent = this.scene[node.parent]
-      const parentDerived = this.derivedScene[node.parent]
-      parentDerived.children.add(guid)
-    }
-
-    for (const childGUID of derived.children) {
-      const child = this.scene[childGUID]
-      const childDerived = this.derivedScene[childGUID]
-      if (!isParentableNode(child) || child.parent !== guid) {
-        childDerived.children.delete(guid)
-      }
-    }
-  }
-
-  ////////////////////////////////////////////////////////////////////////////////
   // Make sure derivedScene is up-to-date & notify listeners.
   // These need to be called whenever the scene graph or nodes change!
   ////////////////////////////////////////////////////////////////////////////////
@@ -140,7 +161,7 @@ export class SceneGraph {
     const node = this.scene[guid]
     const derived = this.derivedScene[guid]
 
-    if (isParentableNode(node)) {
+    if (node.parent != null) {
       const parentDerived = this.derivedScene[node.parent]
       derived.absoluteTransform = mat2d.multiply(mat2d.create(), parentDerived.absoluteTransform, node.relativeTransform)
     }
@@ -153,7 +174,18 @@ export class SceneGraph {
     }
   }
 
+  private addDerivedChild(parentGUID: string, childGUID: string) {
+    const parentDerived = this.derivedScene[parentGUID]
+    parentDerived.children.add(childGUID)
+  }
+
+  private removeDerivedChild(parentGUID: string, childGUID: string) {
+    const parentDerived = this.derivedScene[parentGUID]
+    parentDerived.children.delete(childGUID)
+  }
+
   private onNodeAdded(guid: string) {
+    const node = this.scene[guid]
     if (!(guid in this.derivedScene)) {
       this.derivedScene[guid] = {
         children: new Set<string>(),
@@ -164,10 +196,8 @@ export class SceneGraph {
     // TODO: turn the parenting & derived transform updaters into listeners
 
     // Update parenting
-    const node = this.scene[guid]
-    if (isParentableNode(node)) {
-      const parentDerived = this.derivedScene[node.parent]
-      parentDerived.children.add(guid)
+    if (node.parent != null) {
+      this.addDerivedChild(node.parent, guid)
     }
 
     // Update transforms
@@ -182,6 +212,9 @@ export class SceneGraph {
     const derived = this.derivedScene[guid]
 
     // Update parenting
+    if (node.parent != null) {
+      this.removeDerivedChild(node.parent, guid)
+    }
 
     for (const l of this.listeners) {
       l.onNodeRemoved(guid)
@@ -190,6 +223,13 @@ export class SceneGraph {
 
   private onNodeChanged(guid: string, change: Change<Model.Node>) {
     if (change.key === 'relativeTransform') {
+      this.deriveAbsoluteTransform(guid)
+    }
+
+    if (change.key === 'parent') {
+      if (change.oldValue) this.removeDerivedChild(change.oldValue, guid)
+      if (change.newValue) this.removeDerivedChild(change.newValue, guid)
+
       this.deriveAbsoluteTransform(guid)
     }
 
@@ -202,6 +242,13 @@ export class SceneGraph {
   // Update the scene graph.
   ////////////////////////////////////////////////////////////////////////////////
 
+  removeNode(guid: string) {
+    const node = this.scene[guid]
+    if (node == null) return
+
+    node.parent = undefined
+  }
+
   addNode(n: Model.Node) {
     this.scene[n.guid] = observeObject<Model.Node>(n, this.nodesObserver)
   }
@@ -212,15 +259,31 @@ export class SceneGraph {
       width: number,
       height: number,
       relativeTransform: mat2d,
-      color: string
-    }
+      color: string,
+      guid?: string // only specify this when testing!
+    },
   ) {
-    const guid = generateGUID()
+    const guid = n.guid == null ? generateGUID() : n.guid
+
     this.addNode({
       type: 'FRAME',
       resizeToFit: false,
       guid: guid,
       ...n
+    })
+
+    return this.getNode(guid)
+  }
+
+  addCanvas(
+    guid?: string // only specify this when testing!
+  ) {
+    if (!guid) guid = generateGUID()
+
+    this.addNode({
+      type: 'CANVAS',
+      guid: guid,
+      relativeTransform: mat2d.create()
     })
 
     return this.getNode(guid)
@@ -239,5 +302,27 @@ export class SceneGraph {
 
   getModel(): Readonly<Model.Scene> {
     return this.scene
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // For testing + debugging.
+  ////////////////////////////////////////////////////////////////////////////////
+
+  hierarchyString(rootGUID: string): string {
+    let root = this.getNode(rootGUID)
+    if (root == null) {
+      return ''
+    }
+
+    let childrenStrings = []
+    for (const childGUID of root.children()) {
+      childrenStrings.push(this.hierarchyString(childGUID))
+    }
+
+    if (childrenStrings.length) {
+      return `${root.get('guid')}[${childrenStrings.join(',')}]`
+    } else {
+      return `${root.get('guid')}`
+    }
   }
 }
