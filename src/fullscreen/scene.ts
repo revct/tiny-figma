@@ -70,11 +70,34 @@ export class SceneGraph {
   private scene: Model.Scene
   private derivedScene: {[guid: string]: DerivedNodeProperties}
 
+  private sceneObserver: Observer<Model.Scene> = new Observer()
+  private nodesObserver: Observer<Model.Node> = new Observer()
+
   private listeners: Set<SceneGraphListener> = new Set()
 
   constructor(scene: Model.Scene) {
-    this.scene = {}
+    this.scene = observeObject<Model.Scene>({}, this.sceneObserver)
     this.derivedScene = {}
+
+    this.sceneObserver.addListener((c: Change<Model.Scene>) => {
+      if (c.type == 'DELETE') {
+        this.onNodeRemoved(c.key as string, c.oldValue)
+      }
+      if (c.type == 'SET') {
+        if (c.oldValue != null) {
+          console.error(`received a node re-assignment ${JSON.stringify(c)}`)
+        }
+        this.onNodeAdded(c.key as string)
+      }
+    })
+    this.nodesObserver.addListener((c: Change<Model.Node>) => {
+      if (c.type == 'DELETE') {
+        this.onNodeChanged(c.object.guid, c)
+      }
+      if (c.type == 'SET' && c.oldValue != null) {
+        this.onNodeChanged(c.object.guid, c)
+      }
+    })
 
     for (const key in scene) {
       this.addNode(scene[key])
@@ -113,20 +136,42 @@ export class SceneGraph {
   // These need to be called whenever the scene graph or nodes change!
   ////////////////////////////////////////////////////////////////////////////////
 
-  private onNodeAdded(guid: string) {
+  private deriveAbsoluteTransform(guid: string) {
     const node = this.scene[guid]
     const derived = this.derivedScene[guid]
 
     if (isParentableNode(node)) {
-      const parent = this.scene[node.parent]
       const parentDerived = this.derivedScene[node.parent]
-      parentDerived.children.add(guid)
-
       derived.absoluteTransform = mat2d.multiply(mat2d.create(), parentDerived.absoluteTransform, node.relativeTransform)
     }
     else {
       derived.absoluteTransform = node.relativeTransform
     }
+
+    for (const childGUID of derived.children) {
+      this.deriveAbsoluteTransform(childGUID)
+    }
+  }
+
+  private onNodeAdded(guid: string) {
+    if (!(guid in this.derivedScene)) {
+      this.derivedScene[guid] = {
+        children: new Set<string>(),
+        absoluteTransform: mat2d.create(),
+      }
+    }
+
+    // TODO: turn the parenting & derived transform updaters into listeners
+
+    // Update parenting
+    const node = this.scene[guid]
+    if (isParentableNode(node)) {
+      const parentDerived = this.derivedScene[node.parent]
+      parentDerived.children.add(guid)
+    }
+
+    // Update transforms
+    this.deriveAbsoluteTransform(guid)
 
     for (const l of this.listeners) {
       l.onNodeAdded(guid)
@@ -136,13 +181,7 @@ export class SceneGraph {
   private onNodeRemoved(guid: string, node: Model.Node) {
     const derived = this.derivedScene[guid]
 
-    for (const childGUID of derived.children) {
-      const child = this.scene[childGUID]
-      const childDerived = this.derivedScene[childGUID]
-      if (!isParentableNode(child) || child.parent !== guid) {
-        childDerived.children.delete(guid)
-      }
-    }
+    // Update parenting
 
     for (const l of this.listeners) {
       l.onNodeRemoved(guid)
@@ -150,6 +189,10 @@ export class SceneGraph {
   }
 
   private onNodeChanged(guid: string, change: Change<Model.Node>) {
+    if (change.key === 'relativeTransform') {
+      this.deriveAbsoluteTransform(guid)
+    }
+
     for (const l of this.listeners) {
       l.onNodeChanged(guid, change)
     }
@@ -160,13 +203,7 @@ export class SceneGraph {
   ////////////////////////////////////////////////////////////////////////////////
 
   addNode(n: Model.Node) {
-    this.scene[n.guid] = n
-    this.derivedScene[n.guid] = {
-      children: new Set<string>(),
-      absoluteTransform: mat2d.create(),
-    }
-
-    this.onNodeAdded(n.guid)
+    this.scene[n.guid] = observeObject<Model.Node>(n, this.nodesObserver)
   }
 
   addFrame(
