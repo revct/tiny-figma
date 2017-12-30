@@ -74,7 +74,7 @@ describe('hit testing works', () => {
 
     assert.deepEqual(
       scene.hits('canvas', vec2.fromValues(-50, -50), 1),
-      [HitResult.INSIDE, 'canvas'])
+      [HitResult.NONE, null])
 
     assert.deepEqual(
       scene.hits('canvas', vec2.fromValues(50, 50), 1),

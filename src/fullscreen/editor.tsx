@@ -53,6 +53,12 @@ export const absoluteToViewport = (absolutePosition: vec2, cameraMatrix: mat2d) 
   return viewportPosition
 }
 
+export interface CanvasContext {
+  cameraScale: number
+  viewportToAbsolute: (v: vec2) => vec2
+  absoluteToViewport: (v: vec2) => vec2
+}
+
 export class Editor implements SceneGraphListener {
   // Where we render.
   canvas: Canvas
@@ -153,7 +159,7 @@ export class Editor implements SceneGraphListener {
     this.activeBehavior = null
     switch (this.appModel.currentTool) {
       case Model.Tool.DEFAULT:
-        this.mouseBehaviors = [new SelectionMouseBehavior()]
+        this.mouseBehaviors = [new SelectionMouseBehavior(this.sceneGraph, this.appModel)]
         break
       case Model.Tool.FRAME:
         this.mouseBehaviors = [new FrameMouseBehavior(this.sceneGraph, this.appModel)]
@@ -218,6 +224,10 @@ export class Editor implements SceneGraphListener {
     const root = this.sceneGraph.getNode(this.appModel.page)
     if (root) {
       this.recursivelyRender(root)
+    }
+
+    for (const behavior of this.mouseBehaviors) {
+      this.canvas.drawDrawables(transformDrawables(behavior.render(), this.cameraMatrix))
     }
 
     this.canvas.flush()

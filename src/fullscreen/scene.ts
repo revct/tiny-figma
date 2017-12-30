@@ -122,6 +122,25 @@ export class SceneNode<TNode extends Model.Node> {
 
     return []
   }
+
+  renderOutline(): Drawable[] {
+    if (Model.isFrame(this.data)) {
+      const topLeftCorner: vec2 = vec2.fromValues(0, 0)
+      const topRightCorner: vec2 = vec2.fromValues(this.data.width, 0)
+      const bottomRightCorner: vec2 = vec2.fromValues(this.data.width, this.data.height)
+      const bottomLeftCorner: vec2 = vec2.fromValues(0, this.data.height)
+
+      return [
+        transformDrawable({
+          type: 'POLYGON',
+          color: this.data.color,
+          points: [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner]
+        }, this.derived.absoluteTransform)
+      ]
+    }
+
+    return []
+  }
 }
 
 interface DerivedNodeProperties {
@@ -334,7 +353,9 @@ export class SceneGraph {
           return [grandchildResult, grandchildGUID]
         }
       }
-      return [rootResult, rootGUID]
+      if (!root.isCanvas()) {
+        return [rootResult, rootGUID]
+      }
     }
 
     return [HitResult.NONE, null]

@@ -1,7 +1,7 @@
 import {mat2d, vec2} from "gl-matrix";
 import {Drawable} from "./graphics";
 import {absoluteToViewport, generateGUID, viewportToAbsolute} from "./editor";
-import {SceneGraph, SceneNode} from "./scene";
+import {HitResult, SceneGraph, SceneNode} from "./scene";
 import {Model} from "./types";
 import {randomColorPicker} from "../helpers/primitive_helpers";
 
@@ -16,9 +16,10 @@ export class MouseBehaviorEvent {
     this.cameraMatrix = cameraMatrix
   }
 
-  viewportDistanceToAbsolutePosition(otherAbsoluteXY: vec2): number {
-    const otherViewportXY = absoluteToViewport(otherAbsoluteXY, this.cameraMatrix)
-    return vec2.dist(otherViewportXY, this.viewportXY)
+  capturedCameraScale(): number {
+    const v1 = vec2.fromValues(1, 1)
+    const v2 = vec2.transformMat2d(vec2.create(), v1, this.cameraMatrix)
+    return vec2.length(v2) / vec2.length(v1)
   }
 }
 
@@ -34,7 +35,22 @@ export class SelectionMouseBehavior implements MouseBehavior {
   scene: SceneGraph
   appModel: Model.App
 
+  hoveringGUID: string | null
+
+  constructor(scene: SceneGraph, appModel: Model.App) {
+    this.scene = scene
+    this.appModel = appModel
+  }
+
   handleMouseDown(event: MouseBehaviorEvent): boolean {
+    this.hoveringGUID = null
+
+    const [hitResult, hitGUID] = this.scene.hits(this.appModel.page, event.absoluteXY, 4.0 / event.capturedCameraScale(), {inside: true})
+    if (hitResult === HitResult.INSIDE && hitGUID != null) {
+      this.appModel.selection = [hitGUID]
+      return true
+    }
+
     return false
   }
 
@@ -42,13 +58,37 @@ export class SelectionMouseBehavior implements MouseBehavior {
   }
 
   handleMouseMove(event: MouseBehaviorEvent): void {
+    const [hitResult, hitGUID] = this.scene.hits(this.appModel.page, event.absoluteXY, 4.0 / event.capturedCameraScale(), {inside: true})
+
+    if (hitResult === HitResult.INSIDE && hitGUID != null) {
+      this.hoveringGUID = hitGUID
+    } else {
+      this.hoveringGUID = null
+    }
   }
 
   handleMouseDrag(event: MouseBehaviorEvent): void {
   }
 
+  private renderSelectionForNode(node: SceneNode<any>): Drawable {
+    throw ''
+  }
+
   render(): Drawable[] {
-    return []
+    const results = []
+    for (const guid of this.appModel.selection) {
+      const node = this.scene.getNode(guid)
+      if (node) {
+        results.push(this.renderSelectionForNode(node))
+      }
+    }
+    if (this.hoveringGUID != null) {
+      const node = this.scene.getNode(this.hoveringGUID)
+      if (node) {
+        results.push(this.renderSelectionForNode(node))
+      }
+    }
+    return results
   }
 }
 

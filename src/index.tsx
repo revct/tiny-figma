@@ -69,7 +69,8 @@ const sceneGraph: SceneGraph = new SceneGraph({
 const appModelObserver: Observer<Model.App> = new Observer()
 const appModel = observeObject<Model.App>({
   page: 'root',
-  currentTool: Model.Tool.DEFAULT
+  currentTool: Model.Tool.DEFAULT,
+  selection: []
 }, appModelObserver)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
