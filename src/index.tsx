@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import * as redux from 'redux'
 import * as ReactRedux from 'react-redux'
+import * as Immutable from 'immutable'
 
 import {PropertiesPanel} from './web/components/PropertiesPanel'
 import {LayersPanel} from './web/components/LayersPanel'
@@ -70,7 +71,7 @@ const appModelObserver: Observer<Model.App> = new Observer()
 const appModel = observeObject<Model.App>({
   page: 'root',
   currentTool: Model.Tool.DEFAULT,
-  selection: new Set<string>()
+  selection: Immutable.Set<string>()
 }, appModelObserver)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

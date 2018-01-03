@@ -1,5 +1,6 @@
 
 import {mat2d} from "gl-matrix";
+import * as Immutable from 'immutable'
 
 export namespace Model {
   export type NodeType = 'CANVAS' | 'FRAME'
@@ -43,8 +44,8 @@ export namespace Model {
   }
 
   export type App = {
-    page: string // the root canvas
-    currentTool: Tool
-    selection: Set<string>
+    page: Readonly<string> // the root canvas
+    currentTool: Readonly<Tool>
+    selection: Immutable.Set<string>
   }
 }

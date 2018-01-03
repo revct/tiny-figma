@@ -12,6 +12,7 @@ import {
   FrameMouseBehavior, MouseBehavior, MouseBehaviorEvent,
   SelectionMouseBehavior
 } from "./behaviors";
+import {SelectionEnforcer} from "./selection_enforcer";
 
 
 let _nextGUID = 0
@@ -103,7 +104,7 @@ export class Editor implements SceneGraphListener, AppModelObserver {
 
   appModelObservers: AppModelObserver[]
 
-  mouseBehaviors: MouseBehavior[]
+  mouseBehaviors: ReadonlyArray<MouseBehavior>
   activeBehavior: MouseBehavior | null
 
   wasUpdated: {
@@ -127,7 +128,7 @@ export class Editor implements SceneGraphListener, AppModelObserver {
     this.sceneGraph.addSceneGraphListener(this)
     this.wasUpdated = {sceneGraph: false, appModel: false}
 
-    this.appModelObservers = []
+    this.appModelObservers = [new SelectionEnforcer(this.sceneGraph)]
 
     this.updateMouseBehaviors()
 

@@ -47,6 +47,22 @@ export class SceneNode<TNode extends Model.Node> {
     return this.derived.children
   }
 
+  descendants(result?: Set<string>): Set<string> {
+    if (result == null) {
+      result = new Set<string>()
+    }
+
+    for (const childGUID of this.children()) {
+      result.add(childGUID)
+
+      const child = this.scene.getNode(childGUID)
+      if (child) {
+        child.descendants(result)
+      }
+    }
+    return result
+  }
+
   isFrame(): this is SceneNode<FrameNode> {
     return Model.isFrame(this.data)
   }

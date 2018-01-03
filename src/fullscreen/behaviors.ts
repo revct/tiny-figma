@@ -47,13 +47,16 @@ export class SelectionMouseBehavior implements MouseBehavior {
     if (hitResult === HitResult.INSIDE && hitGUID != null) {
       if (event.modifierKeys.shift) {
         if (this.appModel.selection.has(hitGUID)) {
-          this.appModel.selection.delete(hitGUID)
+          this.appModel.selection = this.appModel.selection
+            .delete(hitGUID)
         } else {
-          this.appModel.selection.add(hitGUID)
+          this.appModel.selection = this.appModel.selection
+            .add(hitGUID)
         }
       } else {
-        this.appModel.selection.clear()
-        this.appModel.selection.add(hitGUID)
+        this.appModel.selection = this.appModel.selection
+          .clear()
+          .add(hitGUID)
       }
       return true
     }
