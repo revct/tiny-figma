@@ -12,7 +12,7 @@ import {
   FrameMouseBehavior, MouseBehavior, MouseBehaviorEvent,
   SelectionMouseBehavior
 } from "./behaviors";
-import {SelectionEnforcer} from "./selection_enforcer";
+import {AppModel, AppModelListener} from "./app_model";
 
 
 let _nextGUID = 0
@@ -86,12 +86,7 @@ export const scaledStrokeWeight = (weight: number, cameraMatrix: mat2d): number 
   return weight * cameraScale(cameraMatrix)
 }
 
-
-export interface AppModelObserver {
-  onAppModelChange(change: Change<Model.App>): void
-}
-
-export class Editor implements SceneGraphListener, AppModelObserver {
+export class Editor implements SceneGraphListener, AppModelListener {
   // Where we render.
   canvas: Canvas
 
@@ -100,9 +95,10 @@ export class Editor implements SceneGraphListener, AppModelObserver {
 
   // The state of the application
   sceneGraph: SceneGraph
-  appModel: Model.App
+  appModel: AppModel
 
-  appModelObservers: AppModelObserver[]
+  appModelListeners: AppModelListener[]
+  sceneGraphListeners: SceneGraphListener[]
 
   mouseBehaviors: ReadonlyArray<MouseBehavior>
   activeBehavior: MouseBehavior | null
@@ -118,17 +114,20 @@ export class Editor implements SceneGraphListener, AppModelObserver {
   constructor(
     canvasEl: HTMLCanvasElement,
     sceneGraph: SceneGraph,
-    appModel: Model.App
+    appModel: AppModel
   ) {
     this.canvas = new Canvas(canvasEl)
     this.cameraMatrix = mat2d.fromTranslation(mat2d.create(), [this.canvas.width() * 0.5, this.canvas.height() * 0.5])
     this.sceneGraph = sceneGraph
     this.appModel = appModel
 
-    this.sceneGraph.addSceneGraphListener(this)
+    this.sceneGraph.setSceneGraphListener(this)
+    this.appModel.setAppModelListener(this)
+
     this.wasUpdated = {sceneGraph: false, appModel: false}
 
-    this.appModelObservers = [new SelectionEnforcer(this.sceneGraph)]
+    this.appModelListeners = []
+    this.sceneGraphListeners = []
 
     this.updateMouseBehaviors()
 
@@ -204,7 +203,7 @@ export class Editor implements SceneGraphListener, AppModelObserver {
   ////////////////////////////////////////////////////////////////////////////////
   updateMouseBehaviors() {
     this.activeBehavior = null
-    switch (this.appModel.currentTool) {
+    switch (this.appModel.get('currentTool')) {
       case Model.Tool.DEFAULT:
         this.mouseBehaviors = [new SelectionMouseBehavior(this.sceneGraph, this.appModel)]
         break
@@ -220,18 +219,27 @@ export class Editor implements SceneGraphListener, AppModelObserver {
     if (change.key === 'currentTool' && change.oldValue !== change.newValue) {
       this.updateMouseBehaviors()
     }
-    for (const observer of this.appModelObservers) {
-      observer.onAppModelChange(change)
+    for (const l of this.appModelListeners) {
+      l.onAppModelChange(change)
     }
     this.wasUpdated.appModel = true
   }
   onNodeAdded(guid: string) {
+    for (const l of this.sceneGraphListeners) {
+      l.onNodeAdded(guid)
+    }
     this.wasUpdated.sceneGraph = true
   }
   onNodeRemoved(guid: string) {
+    for (const l of this.sceneGraphListeners) {
+      l.onNodeRemoved(guid)
+    }
     this.wasUpdated.sceneGraph = true
   }
   onNodeChanged(guid: string, change: Change<Model.Node>) {
+    for (const l of this.sceneGraphListeners) {
+      l.onNodeChanged(guid, change)
+    }
     this.wasUpdated.sceneGraph = true
   }
 
@@ -239,7 +247,7 @@ export class Editor implements SceneGraphListener, AppModelObserver {
   ////////////////////////////////////////////////////////////////////////////////
 
   switchTool(tool: Model.Tool) {
-    this.appModel.currentTool = tool
+    this.appModel.set('currentTool', tool)
   }
 
   think(ms: number) {
@@ -274,7 +282,7 @@ export class Editor implements SceneGraphListener, AppModelObserver {
     this.canvas.drawBackground('#fafafa')
     this.canvas.drawDrawables(transformDrawables(AXIS_DRAWABLES, this.cameraMatrix))
 
-    const root = this.sceneGraph.getNode(this.appModel.page)
+    const root = this.sceneGraph.getNode(this.appModel.get('page'))
     if (root) {
       this.recursivelyRender(root)
     }

@@ -18,6 +18,7 @@ import {forwardActionsToFullscreen} from "./web/middleware";
 import {observeObject, Observer} from "./helpers/observe_helpers";
 import {SceneGraph} from "./fullscreen/scene";
 import {randomColorPicker} from "./helpers/primitive_helpers";
+import {AppModel} from './fullscreen/app_model';
 
 const sceneGraph: SceneGraph = new SceneGraph({
   root: {
@@ -67,12 +68,11 @@ const sceneGraph: SceneGraph = new SceneGraph({
   }
 })
 
-const appModelObserver: Observer<Model.App> = new Observer()
-const appModel = observeObject<Model.App>({
+const appModel: AppModel = new AppModel({
   page: 'root',
   currentTool: Model.Tool.DEFAULT,
   selection: Immutable.Set<string>()
-}, appModelObserver)
+})
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -87,11 +87,10 @@ const store = redux.createStore<State>(
   redux.applyMiddleware(forwardActionsToFullscreen(editor))
 )
 
-appModelObserver.addListener(c => editor.onAppModelChange(c))
 editor.sendActionToWeb = store.dispatch
 
 store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph.getModel()));
-store.dispatch(actions.toWeb.injectAppModel(appModel));
+store.dispatch(actions.toWeb.injectAppModel(appModel.getModel()));
 
 ReactDOM.render(
   <ReactRedux.Provider store={store}><LayersPanel dispatch={a => a}/></ReactRedux.Provider>,

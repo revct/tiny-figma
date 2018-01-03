@@ -1,10 +1,11 @@
 import {mat2d, vec2} from "gl-matrix";
 import {Drawable} from "./graphics";
-import {absoluteToViewport, cameraScale, generateGUID, AppModelObserver, viewportToAbsolute} from "./editor";
+import {absoluteToViewport, cameraScale, generateGUID, viewportToAbsolute} from "./editor";
 import {HitResult, SceneGraph, SceneNode} from "./scene";
 import {Model} from "./types";
 import {randomColorPicker} from "../helpers/primitive_helpers";
 import {Change} from "../helpers/observe_helpers";
+import {AppModel, Selection} from "./app_model";
 
 export interface CanvasContext {
   cameraMatrix: mat2d
@@ -31,36 +32,36 @@ export interface MouseBehavior {
 
 export class SelectionMouseBehavior implements MouseBehavior {
   scene: SceneGraph
-  appModel: Model.App
+  appModel: AppModel
 
   hoveringGUID: string | null
 
-  constructor(scene: SceneGraph, appModel: Model.App) {
+  constructor(scene: SceneGraph, appModel: AppModel) {
     this.scene = scene
     this.appModel = appModel
   }
 
   handleMouseDown(event: MouseBehaviorEvent): boolean {
     this.hoveringGUID = null
+    const selection: Selection = this.appModel.selection
 
-    const [hitResult, hitGUID] = this.scene.hits(this.appModel.page, event.absoluteXY, 4.0 / event.cameraScale, {})
+    const [hitResult, hitGUID] = this.scene.hits(this.appModel.get('page'), event.absoluteXY, 4.0 / event.cameraScale, {})
     if (hitResult === HitResult.INSIDE && hitGUID != null) {
       if (event.modifierKeys.shift) {
-        if (this.appModel.selection.has(hitGUID)) {
-          this.appModel.selection = this.appModel.selection
-            .delete(hitGUID)
+        if (selection.has(hitGUID)) {
+          selection.delete(hitGUID)
+          return true
         } else {
-          this.appModel.selection = this.appModel.selection
-            .add(hitGUID)
+          selection.add(hitGUID, this.scene)
+          return true
         }
       } else {
-        this.appModel.selection = this.appModel.selection
-          .clear()
-          .add(hitGUID)
+        selection.clobber(hitGUID)
+        return true
       }
-      return true
     }
 
+    selection.clear()
     return false
   }
 
@@ -68,13 +69,14 @@ export class SelectionMouseBehavior implements MouseBehavior {
   }
 
   handleMouseMove(event: MouseBehaviorEvent): void {
-    const [hitResult, hitGUID] = this.scene.hits(this.appModel.page, event.absoluteXY, 4.0 / event.cameraScale, {})
+    const [hitResult, hitGUID] = this.scene.hits(this.appModel.get('page'), event.absoluteXY, 4.0 / event.cameraScale, {})
 
     if (hitResult === HitResult.INSIDE && hitGUID != null) {
       this.hoveringGUID = hitGUID
-    } else {
-      this.hoveringGUID = null
+      return
     }
+
+    this.hoveringGUID = null
   }
 
   handleMouseDrag(event: MouseBehaviorEvent): void {
@@ -85,7 +87,7 @@ export class SelectionMouseBehavior implements MouseBehavior {
 
     const selectionPadding = 4.0 / canvasContext.cameraScale
 
-    for (const guid of this.appModel.selection) {
+    for (const guid of this.appModel.get('selection')) {
       const node = this.scene.getNode(guid)
       if (node) {
         for (const d of node.renderOutline({
@@ -115,14 +117,14 @@ export class SelectionMouseBehavior implements MouseBehavior {
 
 export class FrameMouseBehavior implements MouseBehavior {
   scene: SceneGraph
-  appModel: Model.App
+  appModel: AppModel
 
   startAbsoluteXY: vec2
   endAbsoluteXY: vec2
 
   newGUID: string | null
 
-  constructor(scene: SceneGraph, appModel: Model.App) {
+  constructor(scene: SceneGraph, appModel: AppModel) {
     this.scene = scene
     this.appModel = appModel
   }
@@ -158,7 +160,7 @@ export class FrameMouseBehavior implements MouseBehavior {
     this.endAbsoluteXY = event.absoluteXY
 
     let newNode = this.scene.addFrame({
-      parent: this.appModel.page,
+      parent: this.appModel.get('page'),
       width: this.width(),
       height: this.height(),
       color: randomColorPicker(),

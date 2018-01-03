@@ -7,6 +7,7 @@ import set = Reflect.set;
 import FrameNode = Model.FrameNode;
 import {invert} from "../helpers/matrix_helpers";
 import CanvasNode = Model.CanvasNode;
+import Scene = Model.Scene;
 
 export interface SceneGraphListener {
   onNodeAdded: (guid: string) => void
@@ -47,20 +48,18 @@ export class SceneNode<TNode extends Model.Node> {
     return this.derived.children
   }
 
-  descendants(result?: Set<string>): Set<string> {
-    if (result == null) {
-      result = new Set<string>()
-    }
-
+  hasDescendant(guid: string): boolean {
     for (const childGUID of this.children()) {
-      result.add(childGUID)
+      if (childGUID === guid) {
+        return true
+      }
 
       const child = this.scene.getNode(childGUID)
-      if (child) {
-        child.descendants(result)
+      if (child && child.hasDescendant(guid)) {
+        return true
       }
     }
-    return result
+    return false
   }
 
   isFrame(): this is SceneNode<FrameNode> {
@@ -170,7 +169,7 @@ export class SceneGraph {
   private sceneObserver: Observer<Model.Scene> = new Observer()
   private nodesObserver: Observer<Model.Node> = new Observer()
 
-  private listeners: Set<SceneGraphListener> = new Set()
+  private listener: SceneGraphListener
 
   constructor(scene: Model.Scene) {
     this.scene = observeObject<Model.Scene>({}, this.sceneObserver)
@@ -201,8 +200,11 @@ export class SceneGraph {
     }
   }
 
-  addSceneGraphListener(l: SceneGraphListener) {
-    this.listeners.add(l)
+  setSceneGraphListener(l: SceneGraphListener) {
+    if (this.listener) {
+      console.error('already had a scene graph listener... why did you swap it?')
+    }
+    this.listener = l
   }
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -256,9 +258,8 @@ export class SceneGraph {
     // Update transforms
     this.deriveAbsoluteTransform(guid)
 
-    for (const l of this.listeners) {
-      l.onNodeAdded(guid)
-    }
+    if (this.listener)
+      this.listener.onNodeAdded(guid)
   }
 
   private onNodeRemoved(guid: string, node: Model.Node) {
@@ -269,9 +270,8 @@ export class SceneGraph {
       this.removeDerivedChild(node.parent, guid)
     }
 
-    for (const l of this.listeners) {
-      l.onNodeRemoved(guid)
-    }
+    if (this.listener)
+      this.listener.onNodeRemoved(guid)
   }
 
   private onNodeChanged(guid: string, change: Change<Model.Node>) {
@@ -286,9 +286,8 @@ export class SceneGraph {
       this.deriveAbsoluteTransform(guid)
     }
 
-    for (const l of this.listeners) {
-      l.onNodeChanged(guid, change)
-    }
+    if (this.listener)
+      this.listener.onNodeChanged(guid, change)
   }
 
   ////////////////////////////////////////////////////////////////////////////////
