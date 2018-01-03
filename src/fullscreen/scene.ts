@@ -15,7 +15,6 @@ export interface SceneGraphListener {
 }
 
 export type HitCheck = {
-  inside?: boolean
   corners?: boolean
   edges?: boolean
 }
@@ -66,13 +65,13 @@ export class SceneNode<TNode extends Model.Node> {
 
   hits(absolutePoint: vec2, threshold: number, check?: HitCheck): HitResult {
     if (check == null) {
-      check = { inside: true, corners: true, edges: true }
+      check = { corners: true, edges: true }
     }
 
-    // Convenience method for returning HitResult.NONE if HitCheck does not specify that
-    // we should return the found HitResult.
-    const fallback = (shouldReturnResult: boolean | undefined, result: HitResult) => {
-      return shouldReturnResult ? result : HitResult.NONE
+    // Convenience method for returning `backup` if `HitCheck` does not specify that
+    // we should return `result`.
+    const fallback = (shouldReturnResult: boolean | undefined, result: HitResult, backup: HitResult = HitResult.INSIDE) => {
+      return shouldReturnResult ? result : backup
     }
 
     const nodePoint = vec2.transformMat2d(vec2.create(), absolutePoint, invert(this.derived.absoluteTransform))
@@ -84,7 +83,7 @@ export class SceneNode<TNode extends Model.Node> {
       const t = threshold
 
       if (x < -t || x > w + t || y < -t || y > h + t) { return HitResult.NONE }
-      if (x >= t && x <= w - t && y >= t && y <= h - t) { return fallback(check.inside, HitResult.INSIDE) }
+      if (x >= t && x <= w - t && y >= t && y <= h - t) { return HitResult.INSIDE }
 
       if (x <= t && y <= t) { return fallback(check.corners, HitResult.TOP_LEFT) }
       if (x >= w - t && y <= t) { return fallback(check.corners, HitResult.TOP_RIGHT) }
@@ -114,7 +113,7 @@ export class SceneNode<TNode extends Model.Node> {
       return [
         transformDrawable({
           type: 'POLYGON',
-          color: this.data.color,
+          fill: { color: this.data.color },
           points: [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner]
         }, this.derived.absoluteTransform)
       ]
@@ -123,18 +122,18 @@ export class SceneNode<TNode extends Model.Node> {
     return []
   }
 
-  renderOutline(): Drawable[] {
+  renderOutline({padding, weight, color}: {padding: number, weight: number, color: string}): Drawable[] {
     if (Model.isFrame(this.data)) {
-      const topLeftCorner: vec2 = vec2.fromValues(0, 0)
-      const topRightCorner: vec2 = vec2.fromValues(this.data.width, 0)
-      const bottomRightCorner: vec2 = vec2.fromValues(this.data.width, this.data.height)
-      const bottomLeftCorner: vec2 = vec2.fromValues(0, this.data.height)
+      const topLeftCorner: vec2 = vec2.fromValues(-padding, -padding)
+      const topRightCorner: vec2 = vec2.fromValues(this.data.width + padding, -padding)
+      const bottomRightCorner: vec2 = vec2.fromValues(this.data.width + padding, this.data.height + padding)
+      const bottomLeftCorner: vec2 = vec2.fromValues(-padding, this.data.height + padding)
 
       return [
         transformDrawable({
           type: 'POLYGON',
-          color: this.data.color,
-          points: [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner]
+          stroke: { color: color, weight: weight },
+          points: [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner, topLeftCorner]
         }, this.derived.absoluteTransform)
       ]
     }

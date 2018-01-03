@@ -70,7 +70,7 @@ const appModelObserver: Observer<Model.App> = new Observer()
 const appModel = observeObject<Model.App>({
   page: 'root',
   currentTool: Model.Tool.DEFAULT,
-  selection: []
+  selection: new Set<string>()
 }, appModelObserver)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

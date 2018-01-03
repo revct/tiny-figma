@@ -1,25 +1,23 @@
 import {mat2d, vec2} from "gl-matrix";
 import {Drawable} from "./graphics";
-import {absoluteToViewport, generateGUID, viewportToAbsolute} from "./editor";
+import {absoluteToViewport, cameraScale, generateGUID, AppModelObserver, viewportToAbsolute} from "./editor";
 import {HitResult, SceneGraph, SceneNode} from "./scene";
 import {Model} from "./types";
 import {randomColorPicker} from "../helpers/primitive_helpers";
+import {Change} from "../helpers/observe_helpers";
 
-export class MouseBehaviorEvent {
+export interface CanvasContext {
+  cameraMatrix: mat2d
+  cameraScale: number
+}
+
+export interface MouseBehaviorEvent {
   viewportXY: vec2
   absoluteXY: vec2
   cameraMatrix: mat2d
-
-  constructor(viewportXY: vec2, cameraMatrix: mat2d) {
-    this.viewportXY = viewportXY
-    this.absoluteXY = viewportToAbsolute(viewportXY, cameraMatrix)
-    this.cameraMatrix = cameraMatrix
-  }
-
-  capturedCameraScale(): number {
-    const v1 = vec2.fromValues(1, 1)
-    const v2 = vec2.transformMat2d(vec2.create(), v1, this.cameraMatrix)
-    return vec2.length(v2) / vec2.length(v1)
+  cameraScale: number
+  modifierKeys: {
+    shift: boolean,
   }
 }
 
@@ -28,7 +26,7 @@ export interface MouseBehavior {
   handleMouseUp(event: MouseBehaviorEvent): void
   handleMouseMove(event: MouseBehaviorEvent): void
   handleMouseDrag(event: MouseBehaviorEvent): void
-  render(): Drawable[]
+  render(canvasContext: CanvasContext): Drawable[]
 }
 
 export class SelectionMouseBehavior implements MouseBehavior {
@@ -45,9 +43,18 @@ export class SelectionMouseBehavior implements MouseBehavior {
   handleMouseDown(event: MouseBehaviorEvent): boolean {
     this.hoveringGUID = null
 
-    const [hitResult, hitGUID] = this.scene.hits(this.appModel.page, event.absoluteXY, 4.0 / event.capturedCameraScale(), {inside: true})
+    const [hitResult, hitGUID] = this.scene.hits(this.appModel.page, event.absoluteXY, 4.0 / event.cameraScale, {})
     if (hitResult === HitResult.INSIDE && hitGUID != null) {
-      this.appModel.selection = [hitGUID]
+      if (event.modifierKeys.shift) {
+        if (this.appModel.selection.has(hitGUID)) {
+          this.appModel.selection.delete(hitGUID)
+        } else {
+          this.appModel.selection.add(hitGUID)
+        }
+      } else {
+        this.appModel.selection.clear()
+        this.appModel.selection.add(hitGUID)
+      }
       return true
     }
 
@@ -58,7 +65,7 @@ export class SelectionMouseBehavior implements MouseBehavior {
   }
 
   handleMouseMove(event: MouseBehaviorEvent): void {
-    const [hitResult, hitGUID] = this.scene.hits(this.appModel.page, event.absoluteXY, 4.0 / event.capturedCameraScale(), {inside: true})
+    const [hitResult, hitGUID] = this.scene.hits(this.appModel.page, event.absoluteXY, 4.0 / event.cameraScale, {})
 
     if (hitResult === HitResult.INSIDE && hitGUID != null) {
       this.hoveringGUID = hitGUID
@@ -70,22 +77,33 @@ export class SelectionMouseBehavior implements MouseBehavior {
   handleMouseDrag(event: MouseBehaviorEvent): void {
   }
 
-  private renderSelectionForNode(node: SceneNode<any>): Drawable {
-    throw ''
-  }
-
-  render(): Drawable[] {
+  render(canvasContext: CanvasContext): Drawable[] {
     const results = []
+
+    const selectionPadding = 4.0 / canvasContext.cameraScale
+
     for (const guid of this.appModel.selection) {
       const node = this.scene.getNode(guid)
       if (node) {
-        results.push(this.renderSelectionForNode(node))
+        for (const d of node.renderOutline({
+          padding: selectionPadding,
+          color: '#4ef',
+          weight: 2.0
+        })) {
+          results.push(d)
+        }
       }
     }
     if (this.hoveringGUID != null) {
       const node = this.scene.getNode(this.hoveringGUID)
       if (node) {
-        results.push(this.renderSelectionForNode(node))
+        for (const d of node.renderOutline({
+          padding: selectionPadding,
+          color: '#8ff',
+          weight: 2.0
+        })) {
+          results.push(d)
+        }
       }
     }
     return results
@@ -183,7 +201,7 @@ export class FrameMouseBehavior implements MouseBehavior {
     }
   }
 
-  render(): Drawable[] {
+  render(canvasContext: CanvasContext): Drawable[] {
     return []
   }
 }

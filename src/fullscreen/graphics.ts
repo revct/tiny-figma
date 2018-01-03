@@ -4,13 +4,20 @@ import {createElement} from "react";
 
 export interface Polygon {
   type: 'POLYGON'
-  color: string
   points: vec2[]
+  fill?: {
+    color: string
+  }
+  stroke?: {
+    color: string
+    weight: number
+  }
 }
 
 export interface Line {
   type: 'LINE'
   color: string
+  weight: number
   points: vec2[]
 }
 
@@ -99,24 +106,34 @@ export class Canvas {
   }
 
   drawPolygon(
-    color: string,
-    points: vec2[],
+    d: Polygon
   ) {
-    this.backContext.fillStyle = color
+    if (d.fill) {
+      this.backContext.fillStyle = d.fill.color
+    }
+    if (d.stroke) {
+      this.backContext.strokeStyle = d.stroke.color
+      this.backContext.lineWidth = d.stroke.weight
+    }
+
     this.backContext.beginPath()
-    this.backContext.moveTo(points[0][0], points[0][1])
-    for (let point of points.slice(1)) {
+    this.backContext.moveTo(d.points[0][0], d.points[0][1])
+    for (let point of d.points.slice(1)) {
       this.backContext.lineTo(point[0], point[1])
     }
-    this.backContext.moveTo(points[0][0], points[0][1])
-    this.backContext.fill()
+    this.backContext.moveTo(d.points[0][0], d.points[0][1])
+
+    if (d.fill) this.backContext.fill()
+    if (d.stroke) this.backContext.stroke()
   }
 
   drawLine(
     color: string,
+    weight: number,
     points: vec2[],
   ) {
-    this.backContext.fillStyle = color
+    this.backContext.strokeStyle = color
+    this.backContext.lineWidth = weight
     this.backContext.beginPath()
     this.backContext.moveTo(points[0][0], points[0][1])
     for (let point of points.slice(1)) {
@@ -129,10 +146,10 @@ export class Canvas {
     for (const d of ds) {
       switch (d.type) {
         case 'POLYGON':
-          this.drawPolygon(d.color, d.points)
+          this.drawPolygon(d as Polygon)
           break
         case 'LINE':
-          this.drawLine(d.color, d.points)
+          this.drawLine(d.color, d.weight, d.points)
           break
         case 'BACKGROUND':
           this.drawBackground(d.color)

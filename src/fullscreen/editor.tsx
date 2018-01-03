@@ -7,7 +7,11 @@ import {Dispatch} from "react-redux";
 import {Change, observeObject} from "../helpers/observe_helpers";
 import {actions} from "../web/actions";
 import {SceneGraph, SceneGraphListener, SceneNode} from "./scene";
-import {FrameMouseBehavior, MouseBehavior, MouseBehaviorEvent, SelectionMouseBehavior} from "./behaviors";
+import {
+  CanvasContext,
+  FrameMouseBehavior, MouseBehavior, MouseBehaviorEvent,
+  SelectionMouseBehavior
+} from "./behaviors";
 
 
 let _nextGUID = 0
@@ -15,22 +19,37 @@ export const generateGUID = () => {
   return `${_nextGUID ++}`
 }
 
-const AXIS_LINES = [
-  [
-    vec2.fromValues(0, -10),
-    vec2.fromValues(0, 0),
-    vec2.fromValues(10, 0),
-  ],
-  [
-    vec2.fromValues(-0.5, -9.5),
-    vec2.fromValues(0, -10),
-    vec2.fromValues(0.5, -9.5),
-  ],
-  [
-    vec2.fromValues(9.5, -0.5),
-    vec2.fromValues(10, 0),
-    vec2.fromValues(9.5, 0.5),
-  ]
+const AXIS_DRAWABLES: Drawable[] = [
+  {
+    type: 'LINE',
+    points: [
+      vec2.fromValues(0, -10),
+      vec2.fromValues(0, 0),
+      vec2.fromValues(10, 0),
+    ],
+    color: '#444',
+    weight: 1.0
+  },
+  {
+    type: 'LINE',
+    points: [
+      vec2.fromValues(-0.5, -9.5),
+      vec2.fromValues(0, -10),
+      vec2.fromValues(0.5, -9.5),
+    ],
+    color: '#444',
+    weight: 1.0
+  },
+  {
+    type: 'LINE',
+    points: [
+      vec2.fromValues(9.5, -0.5),
+      vec2.fromValues(10, 0),
+      vec2.fromValues(9.5, 0.5),
+    ],
+    color: '#444',
+    weight: 1.0
+  }
 ]
 
 export const zoomCameraRetainingOrigin = (A: mat2d, scale: number, x: vec2): mat2d => {
@@ -53,13 +72,25 @@ export const absoluteToViewport = (absolutePosition: vec2, cameraMatrix: mat2d) 
   return viewportPosition
 }
 
-export interface CanvasContext {
-  cameraScale: number
-  viewportToAbsolute: (v: vec2) => vec2
-  absoluteToViewport: (v: vec2) => vec2
+const UNIT = vec2.fromValues(1 / Math.sqrt(2), 1 / Math.sqrt(2))
+const ZERO = vec2.fromValues(0, 0)
+
+export const cameraScale = (cameraMatrix: mat2d): number =>  {
+  const v1 = vec2.transformMat2d(vec2.create(), ZERO, cameraMatrix)
+  const v2 = vec2.transformMat2d(vec2.create(), UNIT, cameraMatrix)
+  return vec2.distance(v1, v2)
 }
 
-export class Editor implements SceneGraphListener {
+export const scaledStrokeWeight = (weight: number, cameraMatrix: mat2d): number =>  {
+  return weight * cameraScale(cameraMatrix)
+}
+
+
+export interface AppModelObserver {
+  onAppModelChange(change: Change<Model.App>): void
+}
+
+export class Editor implements SceneGraphListener, AppModelObserver {
   // Where we render.
   canvas: Canvas
 
@@ -69,6 +100,8 @@ export class Editor implements SceneGraphListener {
   // The state of the application
   sceneGraph: SceneGraph
   appModel: Model.App
+
+  appModelObservers: AppModelObserver[]
 
   mouseBehaviors: MouseBehavior[]
   activeBehavior: MouseBehavior | null
@@ -94,6 +127,8 @@ export class Editor implements SceneGraphListener {
     this.sceneGraph.addSceneGraphListener(this)
     this.wasUpdated = {sceneGraph: false, appModel: false}
 
+    this.appModelObservers = []
+
     this.updateMouseBehaviors()
 
     const getMouseLocation = (event: MouseEvent | MouseWheelEvent): vec2 => {
@@ -104,8 +139,15 @@ export class Editor implements SceneGraphListener {
     }
 
     const getMouseBehaviorEvent = (event: MouseEvent) => {
-      const viewportXY: vec2 = getMouseLocation(event)
-      return new MouseBehaviorEvent(viewportXY, this.cameraMatrix)
+      return {
+        viewportXY: getMouseLocation(event),
+        absoluteXY: viewportToAbsolute(getMouseLocation(event), this.cameraMatrix),
+        cameraMatrix: this.cameraMatrix,
+        cameraScale: cameraScale(this.cameraMatrix),
+        modifierKeys: {
+          shift: event.shiftKey
+        }
+      }
     }
 
     document.onkeydown = (event: KeyboardEvent) => {
@@ -129,11 +171,15 @@ export class Editor implements SceneGraphListener {
         this.activeBehavior.handleMouseUp(getMouseBehaviorEvent(event))
     }
     canvasEl.onmousemove = (event: MouseEvent) => {
-      if (this.activeBehavior) {
-        if (event.buttons) {
+      if (event.buttons) {
+        if (this.activeBehavior) {
           this.activeBehavior.handleMouseDrag(getMouseBehaviorEvent(event))
-        } else {
-          this.activeBehavior.handleMouseMove(getMouseBehaviorEvent(event))
+          return
+        }
+      }
+      else {
+        for (const behavior of this.mouseBehaviors) {
+          behavior.handleMouseMove(getMouseBehaviorEvent(event))
         }
       }
     }
@@ -172,6 +218,9 @@ export class Editor implements SceneGraphListener {
   onAppModelChange(change: Change<Model.App>) {
     if (change.key === 'currentTool' && change.oldValue !== change.newValue) {
       this.updateMouseBehaviors()
+    }
+    for (const observer of this.appModelObservers) {
+      observer.onAppModelChange(change)
     }
     this.wasUpdated.appModel = true
   }
@@ -216,10 +265,13 @@ export class Editor implements SceneGraphListener {
   }
 
   render() {
-    this.canvas.drawBackground('#fafafa')
-    for (const path of AXIS_LINES) {
-      this.canvas.drawLine('#aaa', transformArray(path, this.cameraMatrix))
+    const canvasContext: Readonly<CanvasContext> = {
+      cameraMatrix: this.cameraMatrix,
+      cameraScale: cameraScale(this.cameraMatrix)
     }
+
+    this.canvas.drawBackground('#fafafa')
+    this.canvas.drawDrawables(transformDrawables(AXIS_DRAWABLES, this.cameraMatrix))
 
     const root = this.sceneGraph.getNode(this.appModel.page)
     if (root) {
@@ -227,7 +279,7 @@ export class Editor implements SceneGraphListener {
     }
 
     for (const behavior of this.mouseBehaviors) {
-      this.canvas.drawDrawables(transformDrawables(behavior.render(), this.cameraMatrix))
+      this.canvas.drawDrawables(transformDrawables(behavior.render(canvasContext), this.cameraMatrix))
     }
 
     this.canvas.flush()

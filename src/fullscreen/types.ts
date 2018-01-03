@@ -45,6 +45,6 @@ export namespace Model {
   export type App = {
     page: string // the root canvas
     currentTool: Tool
-    selection: string[]
+    selection: Set<string>
   }
 }
