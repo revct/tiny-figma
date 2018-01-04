@@ -162,18 +162,118 @@ interface DerivedNodeProperties {
   absoluteTransform: mat2d
 }
 
+interface DerivedScene {
+  [guid: string]: DerivedNodeProperties
+}
+
+export class ChildrenDeriver implements SceneGraphListener {
+  private scene: Readonly<Model.Scene>
+  private derivedScene: DerivedScene
+
+  constructor(scene: Readonly<Model.Scene>, derivedScene: DerivedScene) {
+    this.scene = scene
+    this.derivedScene = derivedScene
+  }
+
+  addDerivedChild(parentGUID: string, childGUID: string) {
+    const parentDerived = this.derivedScene[parentGUID]
+    parentDerived.children.add(childGUID)
+  }
+
+  removeDerivedChild(parentGUID: string, childGUID: string) {
+    const parentDerived = this.derivedScene[parentGUID]
+    parentDerived.children.delete(childGUID)
+  }
+
+  onNodeAdded(guid: string) {
+    const node = this.scene[guid]
+    if (node.parent != null) {
+      this.addDerivedChild(node.parent, guid)
+    }
+  }
+
+  onNodeRemoved(guid: string) {
+    const node = this.scene[guid]
+    if (node.parent != null) {
+      this.removeDerivedChild(node.parent, guid)
+    }
+  }
+
+  onNodeChanged(guid: string, change: Change<Model.Node>) {
+    if (change.key === 'parent') {
+      if (change.oldValue) this.removeDerivedChild(change.oldValue, guid)
+      if (change.newValue) this.removeDerivedChild(change.newValue, guid)
+    }
+  }
+}
+
+export class AbsoluteTransformDeriver {
+  private scene: Readonly<Model.Scene>
+  private derivedScene: DerivedScene
+
+  constructor(scene: Readonly<Model.Scene>, derivedScene: DerivedScene) {
+    this.scene = scene
+    this.derivedScene = derivedScene
+  }
+
+  deriveAbsoluteTransform(guid: string) {
+    const node = this.scene[guid]
+    const derived = this.derivedScene[guid]
+
+    if (node == null || derived == null) {
+      console.error('failed to derive transform due to null node')
+      return
+    }
+
+    if (node.parent != null) {
+      const parentDerived = this.derivedScene[node.parent]
+      derived.absoluteTransform = mat2d.multiply(mat2d.create(), parentDerived.absoluteTransform, node.relativeTransform)
+    }
+    else {
+      derived.absoluteTransform = node.relativeTransform
+    }
+
+    for (const childGUID of derived.children) {
+      this.deriveAbsoluteTransform(childGUID)
+    }
+  }
+
+  onNodeAdded(guid: string) {
+    this.deriveAbsoluteTransform(guid)
+  }
+
+  onNodeRemoved(guid: string) {
+    // nothing
+  }
+
+  onNodeChanged(guid: string, change: Change<Model.Node>) {
+    if (change.key === 'relativeTransform') {
+      this.deriveAbsoluteTransform(guid)
+    }
+    else if (change.key === 'parent') {
+      this.deriveAbsoluteTransform(guid)
+    }
+  }
+}
+
 export class SceneGraph {
   private scene: Model.Scene
-  private derivedScene: {[guid: string]: DerivedNodeProperties}
+  private readonly derivedScene: DerivedScene
 
   private sceneObserver: Observer<Model.Scene> = new Observer()
   private nodesObserver: Observer<Model.Node> = new Observer()
 
   private listener: SceneGraphListener
+  private derivers: SceneGraphListener[]
 
   constructor(scene: Model.Scene) {
     this.scene = observeObject<Model.Scene>({}, this.sceneObserver)
     this.derivedScene = {}
+
+    this.derivers = [
+      new ChildrenDeriver(this.scene, this.derivedScene),
+      new AbsoluteTransformDeriver(this.scene, this.derivedScene)
+    ]
 
     this.sceneObserver.addListener((c: Change<Model.Scene>) => {
       if (c.type == 'DELETE') {
@@ -212,35 +312,7 @@ export class SceneGraph {
   // These need to be called whenever the scene graph or nodes change!
   ////////////////////////////////////////////////////////////////////////////////
 
-  private deriveAbsoluteTransform(guid: string) {
-    const node = this.scene[guid]
-    const derived = this.derivedScene[guid]
-
-    if (node.parent != null) {
-      const parentDerived = this.derivedScene[node.parent]
-      derived.absoluteTransform = mat2d.multiply(mat2d.create(), parentDerived.absoluteTransform, node.relativeTransform)
-    }
-    else {
-      derived.absoluteTransform = node.relativeTransform
-    }
-
-    for (const childGUID of derived.children) {
-      this.deriveAbsoluteTransform(childGUID)
-    }
-  }
-
-  private addDerivedChild(parentGUID: string, childGUID: string) {
-    const parentDerived = this.derivedScene[parentGUID]
-    parentDerived.children.add(childGUID)
-  }
-
-  private removeDerivedChild(parentGUID: string, childGUID: string) {
-    const parentDerived = this.derivedScene[parentGUID]
-    parentDerived.children.delete(childGUID)
-  }
-
   private onNodeAdded(guid: string) {
-    const node = this.scene[guid]
     if (!(guid in this.derivedScene)) {
       this.derivedScene[guid] = {
         children: new Set<string>(),
@@ -248,46 +320,37 @@ export class SceneGraph {
       }
     }
 
-    // TODO: turn the parenting & derived transform updaters into listeners
-
-    // Update parenting
-    if (node.parent != null) {
-      this.addDerivedChild(node.parent, guid)
+    for (const d of this.derivers) {
+      d.onNodeAdded(guid)
     }
 
-    // Update transforms
-    this.deriveAbsoluteTransform(guid)
-
-    if (this.listener)
+    if (this.listener) {
       this.listener.onNodeAdded(guid)
+    }
   }
 
   private onNodeRemoved(guid: string, node: Model.Node) {
-    const derived = this.derivedScene[guid]
-
-    // Update parenting
-    if (node.parent != null) {
-      this.removeDerivedChild(node.parent, guid)
+    if (guid in this.derivedScene) {
+      delete this.derivedScene[guid]
     }
 
-    if (this.listener)
+    for (const d of this.derivers) {
+      d.onNodeRemoved(guid)
+    }
+
+    if (this.listener) {
       this.listener.onNodeRemoved(guid)
+    }
   }
 
   private onNodeChanged(guid: string, change: Change<Model.Node>) {
-    if (change.key === 'relativeTransform') {
-      this.deriveAbsoluteTransform(guid)
+    for (const d of this.derivers) {
+      d.onNodeChanged(guid, change)
     }
 
-    if (change.key === 'parent') {
-      if (change.oldValue) this.removeDerivedChild(change.oldValue, guid)
-      if (change.newValue) this.removeDerivedChild(change.newValue, guid)
-
-      this.deriveAbsoluteTransform(guid)
-    }
-
-    if (this.listener)
+    if (this.listener) {
       this.listener.onNodeChanged(guid, change)
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////////

@@ -168,6 +168,10 @@ export class FrameMouseBehavior implements MouseBehavior {
     }) as SceneNode<any>
 
     this.newGUID = newNode.get('guid')
+    if (this.newGUID != null) {
+      this.appModel.selection.clobber(this.newGUID)
+    }
+
     return true
   }
 
