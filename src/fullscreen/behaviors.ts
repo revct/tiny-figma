@@ -6,6 +6,7 @@ import {Model} from "./types";
 import {randomColorPicker} from "../helpers/primitive_helpers";
 import {Change} from "../helpers/observe_helpers";
 import {AppModel, Selection} from "./app_model";
+import {SelectionTransformer} from "./selection_transformer";
 
 export interface CanvasContext {
   cameraMatrix: mat2d
@@ -35,6 +36,7 @@ export class SelectionMouseBehavior implements MouseBehavior {
   appModel: AppModel
 
   hoveringGUID: string | null
+  selectionTransformer: SelectionTransformer | null
 
   constructor(scene: SceneGraph, appModel: AppModel) {
     this.scene = scene
@@ -45,27 +47,36 @@ export class SelectionMouseBehavior implements MouseBehavior {
     this.hoveringGUID = null
     const selection: Selection = this.appModel.selection
 
+    let result = false
+
     const [hitResult, hitGUID] = this.scene.hits(this.appModel.get('page'), event.absoluteXY, 4.0 / event.cameraScale, {})
     if (hitResult === HitResult.INSIDE && hitGUID != null) {
       if (event.modifierKeys.shift) {
         if (selection.has(hitGUID)) {
           selection.delete(hitGUID)
-          return true
+          result = true
         } else {
           selection.add(hitGUID, this.scene)
-          return true
+          result = true
         }
       } else {
         selection.clobber(hitGUID)
-        return true
+        result = true
       }
     }
 
-    selection.clear()
-    return false
+    if (result) {
+      this.selectionTransformer = new SelectionTransformer(selection.guids(), event.absoluteXY, this.scene)
+      return true
+    } else {
+      selection.clear()
+      this.selectionTransformer = null
+      return false
+    }
   }
 
   handleMouseUp(event: MouseBehaviorEvent): void {
+    this.selectionTransformer = null
   }
 
   handleMouseMove(event: MouseBehaviorEvent): void {
@@ -80,6 +91,9 @@ export class SelectionMouseBehavior implements MouseBehavior {
   }
 
   handleMouseDrag(event: MouseBehaviorEvent): void {
+    if (this.selectionTransformer) {
+      this.selectionTransformer.update(event.absoluteXY, this.scene)
+    }
   }
 
   render(canvasContext: CanvasContext): Drawable[] {

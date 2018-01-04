@@ -1,6 +1,7 @@
 import {Model} from "./types";
 import {Change, observeObject, Observer} from "../helpers/observe_helpers";
 import {SceneGraph} from "./scene";
+import * as Immutable from "immutable";
 
 export interface AppModelListener {
   onAppModelChange(change: Change<Model.App>): void
@@ -43,6 +44,10 @@ export class Selection {
     }
 
     this.model.selection = newSelection.add(guid)
+  }
+
+  guids(): Immutable.Set<string> {
+    return this.model.selection
   }
 
   selectedAncestors(guid: string, scene: SceneGraph): Set<string> {

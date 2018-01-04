@@ -48,6 +48,10 @@ export class SceneNode<TNode extends Model.Node> {
     return this.derived.children
   }
 
+  constraints() {
+    return this.derived.constraints
+  }
+
   hasDescendant(guid: string): boolean {
     for (const childGUID of this.children()) {
       if (childGUID === guid) {
@@ -160,6 +164,11 @@ export class SceneNode<TNode extends Model.Node> {
 interface DerivedNodeProperties {
   children: Set<string>
   absoluteTransform: mat2d
+  constraints: {
+    // TODO: have more and fancier constraints!
+    left: number
+    top: number
+  }
 }
 
 interface DerivedScene {
@@ -256,6 +265,45 @@ export class AbsoluteTransformDeriver {
   }
 }
 
+export class ConstraintsDeriver {
+
+  private scene: Readonly<Model.Scene>
+  private derivedScene: DerivedScene
+
+  constructor(scene: Readonly<Model.Scene>, derivedScene: DerivedScene) {
+    this.scene = scene
+    this.derivedScene = derivedScene
+  }
+
+  deriveConstraints(guid: string) {
+    const node = this.scene[guid]
+    const derived = this.derivedScene[guid]
+
+    if (node == null || derived == null) {
+      console.error('failed to derive transform due to null node')
+      return
+    }
+
+    const xy = vec2.transformMat2d(vec2.create(), vec2.fromValues(0, 0), node.relativeTransform)
+
+    derived.constraints.left = xy[0]
+    derived.constraints.top = xy[1]
+  }
+
+  onNodeAdded(guid: string) {
+    this.deriveConstraints(guid)
+  }
+
+  onNodeRemoved(guid: string) {
+  }
+
+  onNodeChanged(guid: string, change: Change<Model.Node>) {
+    if (change.key === 'relativeTransform') {
+      this.deriveConstraints(guid)
+    }
+  }
+}
+
 export class SceneGraph {
   private scene: Model.Scene
   private readonly derivedScene: DerivedScene
@@ -272,7 +320,8 @@ export class SceneGraph {
 
     this.derivers = [
       new ChildrenDeriver(this.scene, this.derivedScene),
-      new AbsoluteTransformDeriver(this.scene, this.derivedScene)
+      new AbsoluteTransformDeriver(this.scene, this.derivedScene),
+      new ConstraintsDeriver(this.scene, this.derivedScene)
     ]
 
     this.sceneObserver.addListener((c: Change<Model.Scene>) => {
@@ -317,6 +366,10 @@ export class SceneGraph {
       this.derivedScene[guid] = {
         children: new Set<string>(),
         absoluteTransform: mat2d.create(),
+        constraints: {
+          left: -1,
+          top: -1
+        }
       }
     }
 
