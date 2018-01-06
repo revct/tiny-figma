@@ -46,6 +46,10 @@ export class Selection {
     this.model.selection = newSelection.add(guid)
   }
 
+  isEmpty(): boolean {
+    return this.model.selection.size === 0
+  }
+
   guids(): Immutable.Set<string> {
     return this.model.selection
   }

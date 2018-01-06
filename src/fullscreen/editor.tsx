@@ -138,9 +138,28 @@ export class Editor implements SceneGraphListener, AppModelListener {
       )
     }
 
-    const getMouseBehaviorEvent = (event: MouseEvent) => {
+    let startViewportXY = vec2.fromValues(0, 0)
+
+    const startMouseBehaviorEvent = (event: MouseEvent) => {
+      const viewportXY = getMouseLocation(event)
+      startViewportXY = viewportXY
       return {
-        viewportXY: getMouseLocation(event),
+        viewportDeltaXY: vec2.fromValues(0, 0),
+        viewportXY: viewportXY,
+        absoluteXY: viewportToAbsolute(viewportXY, this.cameraMatrix),
+        cameraMatrix: this.cameraMatrix,
+        cameraScale: cameraScale(this.cameraMatrix),
+        modifierKeys: {
+          shift: event.shiftKey
+        }
+      }
+    }
+
+    const continueMouseBehaviorEvent = (event: MouseEvent) => {
+      const viewportXY = getMouseLocation(event)
+      return {
+        viewportDeltaXY: vec2.subtract(vec2.create(), viewportXY, startViewportXY),
+        viewportXY: viewportXY,
         absoluteXY: viewportToAbsolute(getMouseLocation(event), this.cameraMatrix),
         cameraMatrix: this.cameraMatrix,
         cameraScale: cameraScale(this.cameraMatrix),
@@ -159,7 +178,7 @@ export class Editor implements SceneGraphListener, AppModelListener {
       }
     }
     canvasEl.onmousedown = (event: MouseEvent) => {
-      const behaviorEvent = getMouseBehaviorEvent(event)
+      const behaviorEvent = startMouseBehaviorEvent(event)
       for (const behavior of this.mouseBehaviors) {
         if (behavior.handleMouseDown(behaviorEvent)) {
           this.activeBehavior = behavior
@@ -168,18 +187,18 @@ export class Editor implements SceneGraphListener, AppModelListener {
     }
     canvasEl.onmouseup = (event: MouseEvent) => {
       if (this.activeBehavior)
-        this.activeBehavior.handleMouseUp(getMouseBehaviorEvent(event))
+        this.activeBehavior.handleMouseUp(continueMouseBehaviorEvent(event))
     }
     canvasEl.onmousemove = (event: MouseEvent) => {
       if (event.buttons) {
         if (this.activeBehavior) {
-          this.activeBehavior.handleMouseDrag(getMouseBehaviorEvent(event))
+          this.activeBehavior.handleMouseDrag(continueMouseBehaviorEvent(event))
           return
         }
       }
       else {
         for (const behavior of this.mouseBehaviors) {
-          behavior.handleMouseMove(getMouseBehaviorEvent(event))
+          behavior.handleMouseMove(continueMouseBehaviorEvent(event))
         }
       }
     }

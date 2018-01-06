@@ -14,6 +14,7 @@ export interface CanvasContext {
 }
 
 export interface MouseBehaviorEvent {
+  viewportDeltaXY: vec2
   viewportXY: vec2
   absoluteXY: vec2
   cameraMatrix: mat2d
@@ -36,6 +37,11 @@ export class SelectionMouseBehavior implements MouseBehavior {
   appModel: AppModel
 
   hoveringGUID: string | null
+  clickContext: {
+    clickedGUID: string
+    wasSelectedBeforeMouseDown: boolean
+  } | null
+  wasDragged: boolean
   selectionTransformer: SelectionTransformer | null
 
   constructor(scene: SceneGraph, appModel: AppModel) {
@@ -43,26 +49,39 @@ export class SelectionMouseBehavior implements MouseBehavior {
     this.appModel = appModel
   }
 
+  handleMouseMove(event: MouseBehaviorEvent): void {
+    const [hitResult, hitGUID] = this.scene.hits(this.appModel.get('page'), event.absoluteXY, 4.0 / event.cameraScale, {})
+
+    if (hitResult === HitResult.INSIDE && hitGUID != null) {
+      this.hoveringGUID = hitGUID
+    } else {
+      this.hoveringGUID = null
+    }
+  }
+
   handleMouseDown(event: MouseBehaviorEvent): boolean {
     this.hoveringGUID = null
+    this.wasDragged = false
     const selection: Selection = this.appModel.selection
 
     let result = false
 
     const [hitResult, hitGUID] = this.scene.hits(this.appModel.get('page'), event.absoluteXY, 4.0 / event.cameraScale, {})
     if (hitResult === HitResult.INSIDE && hitGUID != null) {
-      if (event.modifierKeys.shift) {
-        if (selection.has(hitGUID)) {
-          selection.delete(hitGUID)
-          result = true
-        } else {
-          selection.add(hitGUID, this.scene)
-          result = true
-        }
-      } else {
-        selection.clobber(hitGUID)
-        result = true
+      this.clickContext = {
+        clickedGUID: hitGUID,
+        wasSelectedBeforeMouseDown: selection.has(hitGUID),
       }
+
+      if (event.modifierKeys.shift) {
+        selection.add(hitGUID, this.scene)
+      } else {
+        if (selection.isEmpty() || !selection.has(hitGUID)) {
+          selection.clobber(hitGUID)
+        }
+      }
+
+      result = true
     }
 
     if (result) {
@@ -76,21 +95,23 @@ export class SelectionMouseBehavior implements MouseBehavior {
   }
 
   handleMouseUp(event: MouseBehaviorEvent): void {
-    this.selectionTransformer = null
-  }
-
-  handleMouseMove(event: MouseBehaviorEvent): void {
-    const [hitResult, hitGUID] = this.scene.hits(this.appModel.get('page'), event.absoluteXY, 4.0 / event.cameraScale, {})
-
-    if (hitResult === HitResult.INSIDE && hitGUID != null) {
-      this.hoveringGUID = hitGUID
-      return
+    if (this.wasDragged === false && this.clickContext && this.clickContext.wasSelectedBeforeMouseDown) {
+      const selection: Selection = this.appModel.selection
+      if (event.modifierKeys.shift) {
+        selection.delete(this.clickContext.clickedGUID)
+      } else {
+        selection.clobber(this.clickContext.clickedGUID)
+      }
     }
 
+    this.selectionTransformer = null
     this.hoveringGUID = null
+    this.clickContext = null
+    this.wasDragged = false
   }
 
   handleMouseDrag(event: MouseBehaviorEvent): void {
+    this.wasDragged = true
     if (this.selectionTransformer) {
       this.selectionTransformer.update(event.absoluteXY, this.scene)
     }
