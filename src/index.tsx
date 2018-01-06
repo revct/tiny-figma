@@ -5,9 +5,9 @@ import * as ReactRedux from 'react-redux'
 import * as Immutable from 'immutable'
 
 import {PropertiesPanel} from './web/components/PropertiesPanel'
-import {LayersPanel} from './web/components/LayersPanel'
+import {LayersRoot} from './web/components/LayersPanel'
 
-import {State, reducer} from './web/reducers'
+import {Reducers} from './web/reducers'
 import {Editor} from './fullscreen/editor'
 import {asyncSleep} from "./helpers/async_helpers";
 import {actions} from "./web/actions";
@@ -82,18 +82,18 @@ const editor = new Editor(
   appModel
 )
 
-const store = redux.createStore<State>(
-  reducer,
+const store = redux.createStore<Reducers.State>(
+  Reducers.reducer,
   redux.applyMiddleware(forwardActionsToFullscreen(editor))
 )
 
 editor.sendActionToWeb = store.dispatch
 
-store.dispatch(actions.toWeb.injectSceneGraph(sceneGraph.getModel()));
+store.dispatch(actions.toWeb.injectSceneGraph({mutableDerived: sceneGraph.getDerivedData(), mutableScene: sceneGraph.getSceneData()}));
 store.dispatch(actions.toWeb.injectAppModel(appModel.getModel()));
 
 ReactDOM.render(
-  <ReactRedux.Provider store={store}><LayersPanel dispatch={a => a}/></ReactRedux.Provider>,
+  <ReactRedux.Provider store={store}><LayersRoot/></ReactRedux.Provider>,
   document.getElementById('layers-panel-root'))
 
 ReactDOM.render(

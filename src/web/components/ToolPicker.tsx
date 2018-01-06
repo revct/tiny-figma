@@ -1,6 +1,6 @@
 import * as React from "react"
 import {HasDispatch} from "../../helpers/redux_helpers";
-import {State} from "../reducers";
+import {Reducers} from "../reducers";
 import {connect} from "react-redux";
 import {actions} from "../actions";
 import {Model} from "../../fullscreen/types";
@@ -21,6 +21,6 @@ export const ToolPicker = (props: {currentTool: Model.Tool} & HasDispatch) => {
 export const ToolRoot = connect(
   s => { return {state: s} },
 )(
-  (props: {state: State} & HasDispatch) =>
+  (props: {state: Reducers.State} & HasDispatch) =>
     <ToolPicker currentTool={props.state.appModel.mutable.currentTool} dispatch={props.dispatch}/>
 )

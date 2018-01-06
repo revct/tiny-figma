@@ -3,11 +3,7 @@ import {Change, observeObject, Observer} from "../helpers/observe_helpers";
 import {mat2d, vec2} from "gl-matrix";
 import {generateGUID} from "./editor";
 import {Drawable, transformDrawable} from "./graphics";
-import set = Reflect.set;
-import FrameNode = Model.FrameNode;
 import {invert} from "../helpers/matrix_helpers";
-import CanvasNode = Model.CanvasNode;
-import Scene = Model.Scene;
 
 export interface SceneGraphListener {
   onNodeAdded: (guid: string) => void
@@ -33,12 +29,14 @@ export enum HitResult {
   INSIDE = 'INSIDE'
 }
 
+// const getReadonlySceneNode()
+
 export class SceneNode<TNode extends Model.Node> {
   private data: TNode
-  private derived: DerivedNodeProperties
+  private derived: Model.DerivedNodeProperties
   private scene: SceneGraph
 
-  constructor(data: TNode, derived: DerivedNodeProperties, scene: SceneGraph) {
+  constructor(data: TNode, derived: Model.DerivedNodeProperties, scene: SceneGraph) {
     this.data = data
     this.derived = derived
     this.scene = scene
@@ -66,11 +64,11 @@ export class SceneNode<TNode extends Model.Node> {
     return false
   }
 
-  isFrame(): this is SceneNode<FrameNode> {
+  isFrame(): this is SceneNode<Model.FrameNode> {
     return Model.isFrame(this.data)
   }
 
-  isCanvas(): this is SceneNode<CanvasNode> {
+  isCanvas(): this is SceneNode<Model.CanvasNode> {
     return Model.isCanvas(this.data)
   }
 
@@ -161,25 +159,11 @@ export class SceneNode<TNode extends Model.Node> {
   }
 }
 
-interface DerivedNodeProperties {
-  children: Set<string>
-  absoluteTransform: mat2d
-  constraints: {
-    // TODO: have more and fancier constraints!
-    left: number
-    top: number
-  }
-}
-
-interface DerivedScene {
-  [guid: string]: DerivedNodeProperties
-}
-
 export class ChildrenDeriver implements SceneGraphListener {
   private scene: Readonly<Model.Scene>
-  private derivedScene: DerivedScene
+  private derivedScene: Model.DerivedScene
 
-  constructor(scene: Readonly<Model.Scene>, derivedScene: DerivedScene) {
+  constructor(scene: Readonly<Model.Scene>, derivedScene: Model.DerivedScene) {
     this.scene = scene
     this.derivedScene = derivedScene
   }
@@ -218,9 +202,9 @@ export class ChildrenDeriver implements SceneGraphListener {
 
 export class AbsoluteTransformDeriver {
   private scene: Readonly<Model.Scene>
-  private derivedScene: DerivedScene
+  private derivedScene: Model.DerivedScene
 
-  constructor(scene: Readonly<Model.Scene>, derivedScene: DerivedScene) {
+  constructor(scene: Readonly<Model.Scene>, derivedScene: Model.DerivedScene) {
     this.scene = scene
     this.derivedScene = derivedScene
   }
@@ -268,9 +252,9 @@ export class AbsoluteTransformDeriver {
 export class ConstraintsDeriver {
 
   private scene: Readonly<Model.Scene>
-  private derivedScene: DerivedScene
+  private derivedScene: Model.DerivedScene
 
-  constructor(scene: Readonly<Model.Scene>, derivedScene: DerivedScene) {
+  constructor(scene: Readonly<Model.Scene>, derivedScene: Model.DerivedScene) {
     this.scene = scene
     this.derivedScene = derivedScene
   }
@@ -306,7 +290,7 @@ export class ConstraintsDeriver {
 
 export class SceneGraph {
   private scene: Model.Scene
-  private readonly derivedScene: DerivedScene
+  private readonly derivedScene: Model.DerivedScene
 
   private sceneObserver: Observer<Model.Scene> = new Observer()
   private nodesObserver: Observer<Model.Node> = new Observer()
@@ -468,8 +452,12 @@ export class SceneGraph {
     return null
   }
 
-  getModel(): Readonly<Model.Scene> {
+  getSceneData(): Readonly<Model.Scene> {
     return this.scene
+  }
+
+  getDerivedData(): Readonly<Model.DerivedScene> {
+    return this.derivedScene
   }
 
   hits(rootGUID: string, absolutePoint: vec2, threshold: number, check?: HitCheck): [HitResult, string | null] {

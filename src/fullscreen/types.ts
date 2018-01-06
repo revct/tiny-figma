@@ -5,6 +5,20 @@ import * as Immutable from 'immutable'
 export namespace Model {
   export type NodeType = 'CANVAS' | 'FRAME'
 
+  export interface DerivedNodeProperties {
+    children: Set<string>
+    absoluteTransform: mat2d
+    constraints: {
+      // TODO: have more and fancier constraints!
+      left: number
+      top: number
+    }
+  }
+
+  export interface DerivedScene {
+    [guid: string]: DerivedNodeProperties
+  }
+
   export interface BaseNode {
     readonly guid: string
     // position: number // Children are sorted using this as a key
