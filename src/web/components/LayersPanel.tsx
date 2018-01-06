@@ -10,7 +10,7 @@ export interface LayersPanelProps extends HasDispatch {
 }
 
 const generateLayers = (sceneGraph: Reducers.SceneGraph, appModel: Reducers.AppModel) => {
-  const rootNode: Model.Node = sceneGraph.mutableScene[appModel.mutable.page]
+  const rootNode: Model.NodeProperties = sceneGraph.mutableScene[appModel.mutable.page]
 }
 
 const LayersPanel = (props: LayersPanelProps) =>

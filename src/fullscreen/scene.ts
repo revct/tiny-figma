@@ -8,7 +8,7 @@ import {invert} from "../helpers/matrix_helpers";
 export interface SceneGraphListener {
   onNodeAdded: (guid: string) => void
   onNodeRemoved: (guid: string) => void
-  onNodeChanged: (guid: string, change: Change<Model.Node>) => void
+  onNodeChanged: (guid: string, change: Change<Model.NodeProperties>) => void
 }
 
 export type HitCheck = {
@@ -31,23 +31,23 @@ export enum HitResult {
 
 // const getReadonlySceneNode()
 
-export class SceneNode<TNode extends Model.Node> {
-  private data: TNode
-  private derived: Model.DerivedNodeProperties
+export class SceneNode<TNodeProperties extends Model.NodeProperties> {
+  private nodeProperties: TNodeProperties
+  private derivedProperties: Model.DerivedNodeProperties
   private scene: SceneGraph
 
-  constructor(data: TNode, derived: Model.DerivedNodeProperties, scene: SceneGraph) {
-    this.data = data
-    this.derived = derived
+  constructor(data: TNodeProperties, derived: Model.DerivedNodeProperties, scene: SceneGraph) {
+    this.nodeProperties = data
+    this.derivedProperties = derived
     this.scene = scene
   }
 
   children(): ReadonlySet<string> {
-    return this.derived.children
+    return this.derivedProperties.children
   }
 
   constraints() {
-    return this.derived.constraints
+    return this.derivedProperties.constraints
   }
 
   hasDescendant(guid: string): boolean {
@@ -64,20 +64,20 @@ export class SceneNode<TNode extends Model.Node> {
     return false
   }
 
-  isFrame(): this is SceneNode<Model.FrameNode> {
-    return Model.isFrame(this.data)
+  isFrame(): this is SceneNode<Model.FrameNodeProperties> {
+    return Model.isFrame(this.nodeProperties)
   }
 
-  isCanvas(): this is SceneNode<Model.CanvasNode> {
-    return Model.isCanvas(this.data)
+  isCanvas(): this is SceneNode<Model.CanvasNodeProperties> {
+    return Model.isCanvas(this.nodeProperties)
   }
 
-  set<K extends keyof TNode>(key: K, value: TNode[K]) {
-    this.data[key] = value
+  set<K extends keyof TNodeProperties>(key: K, value: TNodeProperties[K]) {
+    this.nodeProperties[key] = value
   }
 
-  get<K extends keyof TNode>(key: K): TNode[K] {
-    return this.data[key]
+  get<K extends keyof TNodeProperties>(key: K): TNodeProperties[K] {
+    return this.nodeProperties[key]
   }
 
   hits(absolutePoint: vec2, threshold: number, check?: HitCheck): HitResult {
@@ -91,7 +91,7 @@ export class SceneNode<TNode extends Model.Node> {
       return shouldReturnResult ? result : backup
     }
 
-    const nodePoint = vec2.transformMat2d(vec2.create(), absolutePoint, invert(this.derived.absoluteTransform))
+    const nodePoint = vec2.transformMat2d(vec2.create(), absolutePoint, invert(this.derivedProperties.absoluteTransform))
 
     if (this.isFrame()) {
       const w = this.get('width')
@@ -121,18 +121,18 @@ export class SceneNode<TNode extends Model.Node> {
   }
 
   render(): Drawable[] {
-    if (Model.isFrame(this.data)) {
+    if (Model.isFrame(this.nodeProperties)) {
       const topLeftCorner: vec2 = vec2.fromValues(0, 0)
-      const topRightCorner: vec2 = vec2.fromValues(this.data.width, 0)
-      const bottomRightCorner: vec2 = vec2.fromValues(this.data.width, this.data.height)
-      const bottomLeftCorner: vec2 = vec2.fromValues(0, this.data.height)
+      const topRightCorner: vec2 = vec2.fromValues(this.nodeProperties.width, 0)
+      const bottomRightCorner: vec2 = vec2.fromValues(this.nodeProperties.width, this.nodeProperties.height)
+      const bottomLeftCorner: vec2 = vec2.fromValues(0, this.nodeProperties.height)
 
       return [
         transformDrawable({
           type: 'POLYGON',
-          fill: { color: this.data.color },
+          fill: { color: this.nodeProperties.color },
           points: [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner]
-        }, this.derived.absoluteTransform)
+        }, this.derivedProperties.absoluteTransform)
       ]
     }
 
@@ -140,18 +140,18 @@ export class SceneNode<TNode extends Model.Node> {
   }
 
   renderOutline({padding, weight, color}: {padding: number, weight: number, color: string}): Drawable[] {
-    if (Model.isFrame(this.data)) {
+    if (Model.isFrame(this.nodeProperties)) {
       const topLeftCorner: vec2 = vec2.fromValues(-padding, -padding)
-      const topRightCorner: vec2 = vec2.fromValues(this.data.width + padding, -padding)
-      const bottomRightCorner: vec2 = vec2.fromValues(this.data.width + padding, this.data.height + padding)
-      const bottomLeftCorner: vec2 = vec2.fromValues(-padding, this.data.height + padding)
+      const topRightCorner: vec2 = vec2.fromValues(this.nodeProperties.width + padding, -padding)
+      const bottomRightCorner: vec2 = vec2.fromValues(this.nodeProperties.width + padding, this.nodeProperties.height + padding)
+      const bottomLeftCorner: vec2 = vec2.fromValues(-padding, this.nodeProperties.height + padding)
 
       return [
         transformDrawable({
           type: 'POLYGON',
           stroke: { color: color, weight: weight },
           points: [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner, topLeftCorner]
-        }, this.derived.absoluteTransform)
+        }, this.derivedProperties.absoluteTransform)
       ]
     }
 
@@ -192,7 +192,7 @@ export class ChildrenDeriver implements SceneGraphListener {
     }
   }
 
-  onNodeChanged(guid: string, change: Change<Model.Node>) {
+  onNodeChanged(guid: string, change: Change<Model.NodeProperties>) {
     if (change.key === 'parent') {
       if (change.oldValue) this.removeDerivedChild(change.oldValue, guid)
       if (change.newValue) this.removeDerivedChild(change.newValue, guid)
@@ -239,7 +239,7 @@ export class AbsoluteTransformDeriver {
     // nothing
   }
 
-  onNodeChanged(guid: string, change: Change<Model.Node>) {
+  onNodeChanged(guid: string, change: Change<Model.NodeProperties>) {
     if (change.key === 'relativeTransform') {
       this.deriveAbsoluteTransform(guid)
     }
@@ -281,7 +281,7 @@ export class ConstraintsDeriver {
   onNodeRemoved(guid: string) {
   }
 
-  onNodeChanged(guid: string, change: Change<Model.Node>) {
+  onNodeChanged(guid: string, change: Change<Model.NodeProperties>) {
     if (change.key === 'relativeTransform') {
       this.deriveConstraints(guid)
     }
@@ -293,7 +293,7 @@ export class SceneGraph {
   private readonly derivedScene: Model.DerivedScene
 
   private sceneObserver: Observer<Model.Scene> = new Observer()
-  private nodesObserver: Observer<Model.Node> = new Observer()
+  private nodesObserver: Observer<Model.NodeProperties> = new Observer()
 
   private listener: SceneGraphListener
   private derivers: SceneGraphListener[]
@@ -319,7 +319,7 @@ export class SceneGraph {
         this.onNodeAdded(c.key as string)
       }
     })
-    this.nodesObserver.addListener((c: Change<Model.Node>) => {
+    this.nodesObserver.addListener((c: Change<Model.NodeProperties>) => {
       if (c.type == 'DELETE') {
         this.onNodeChanged(c.object.guid, c)
       }
@@ -366,7 +366,7 @@ export class SceneGraph {
     }
   }
 
-  private onNodeRemoved(guid: string, node: Model.Node) {
+  private onNodeRemoved(guid: string, node: Model.NodeProperties) {
     if (guid in this.derivedScene) {
       delete this.derivedScene[guid]
     }
@@ -380,7 +380,7 @@ export class SceneGraph {
     }
   }
 
-  private onNodeChanged(guid: string, change: Change<Model.Node>) {
+  private onNodeChanged(guid: string, change: Change<Model.NodeProperties>) {
     for (const d of this.derivers) {
       d.onNodeChanged(guid, change)
     }
@@ -401,8 +401,8 @@ export class SceneGraph {
     node.parent = undefined
   }
 
-  addNode(n: Model.Node) {
-    this.scene[n.guid] = observeObject<Model.Node>(n, this.nodesObserver)
+  addNode(n: Model.NodeProperties) {
+    this.scene[n.guid] = observeObject<Model.NodeProperties>(n, this.nodesObserver)
   }
 
   addFrame(

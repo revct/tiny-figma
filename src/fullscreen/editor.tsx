@@ -255,7 +255,7 @@ export class Editor implements SceneGraphListener, AppModelListener {
     }
     this.wasUpdated.sceneGraph = true
   }
-  onNodeChanged(guid: string, change: Change<Model.Node>) {
+  onNodeChanged(guid: string, change: Change<Model.NodeProperties>) {
     for (const l of this.sceneGraphListeners) {
       l.onNodeChanged(guid, change)
     }

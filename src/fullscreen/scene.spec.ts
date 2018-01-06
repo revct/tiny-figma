@@ -2,7 +2,7 @@ import {HitResult, SceneGraph, SceneNode} from "./scene";
 import {mat2d, vec2} from "gl-matrix";
 import * as assert from "assert";
 import {Model} from "./types";
-import FrameNode = Model.FrameNode;
+import FrameNode = Model.FrameNodeProperties;
 
 describe('hit testing works', () => {
   it('for an individual node', () => {

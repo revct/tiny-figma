@@ -19,18 +19,18 @@ export namespace Model {
     [guid: string]: DerivedNodeProperties
   }
 
-  export interface BaseNode {
+  export interface BaseNodeProperties {
     readonly guid: string
     // position: number // Children are sorted using this as a key
     relativeTransform: mat2d
     parent?: string // The GUID of the parent node
   }
 
-  export interface CanvasNode extends BaseNode {
+  export interface CanvasNodeProperties extends BaseNodeProperties {
     type: 'CANVAS'
   }
 
-  export interface FrameNode extends BaseNode {
+  export interface FrameNodeProperties extends BaseNodeProperties {
     type: 'FRAME'
     resizeToFit: boolean // Only necessary for frames
     width: number // Size is not present on CANVAS
@@ -38,18 +38,18 @@ export namespace Model {
     color: string
   }
 
-  export type Node = FrameNode | CanvasNode
+  export type NodeProperties = FrameNodeProperties | CanvasNodeProperties
 
-  export function isFrame(n: Node): n is FrameNode {
+  export function isFrame(n: NodeProperties): n is FrameNodeProperties {
     return n.type === 'FRAME'
   }
 
-  export function isCanvas(n: Node): n is CanvasNode {
+  export function isCanvas(n: NodeProperties): n is CanvasNodeProperties {
     return n.type === 'CANVAS'
   }
 
   export type Scene = {
-    [nodeId: string]: Node
+    [nodeId: string]: NodeProperties
   }
 
   export enum Tool {
